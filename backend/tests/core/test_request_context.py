@@ -54,9 +54,9 @@ async def test_request_id_does_not_leak_outside_the_request(client: httpx.AsyncC
 
 
 async def test_allowed_origin_receives_cors_headers(client: httpx.AsyncClient) -> None:
-    response = await client.get("/api/v1/health", headers={"Origin": "http://localhost:5173"})
+    response = await client.get("/api/v1/health", headers={"Origin": "http://localhost:5710"})
 
-    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5710"
     assert "X-Request-ID" in response.headers["access-control-expose-headers"]
 
 
@@ -67,7 +67,7 @@ async def test_unknown_origin_receives_no_cors_headers(client: httpx.AsyncClient
 
 
 async def test_error_response_keeps_cors_headers(client: httpx.AsyncClient) -> None:
-    response = await client.get("/missing", headers={"Origin": "http://localhost:5173"})
+    response = await client.get("/missing", headers={"Origin": "http://localhost:5710"})
 
     assert response.status_code == 404
-    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5710"

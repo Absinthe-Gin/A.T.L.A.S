@@ -1,6 +1,6 @@
 # Kiến trúc AI
 
-> Trạng thái: **Đã phê duyệt.** Phase 2 và Phase 3 đã triển khai; phần AI (Phase 4) chưa triển khai.
+> Trạng thái: **Đã phê duyệt và đã triển khai** (Phase 1–6). Tài liệu mô tả code hiện tại.
 
 ## 1. Nguyên tắc
 
@@ -64,7 +64,7 @@ flowchart TD
 ```
 
 | Thành phần | Trách nhiệm |
-|---|---|
+| --- | --- |
 | `Orchestrator` | Điều phối một lượt chat từ đầu đến cuối |
 | `ConversationContextBuilder` | Nạp lịch sử hội thoại và Memory liên quan, dựng danh sách message cho LLM |
 | `IntentClassifier` | Xác định ý định của tin nhắn, dùng để thu hẹp tập Tool |
@@ -89,7 +89,8 @@ app/modules/ai/
 ├── context.py               # ConversationContextBuilder
 ├── intent.py                # IntentClassifier
 ├── prompts.py               # System prompt, prompt phân loại
-├── execution_log.py         # Ghi log lượt xử lý AI
+├── execution_log.py         # Ghi log lượt xử lý AI, che dữ liệu nhạy cảm
+├── runtime.py               # AIRuntime: các thành phần sống suốt vòng đời ứng dụng
 ├── tools/
 │   ├── registry.py
 │   └── executor.py
@@ -154,7 +155,9 @@ Ghi chú:
 
 - Tập intent gồm các domain do Tool đăng ký (ví dụ `finance`, `travel`, `food`, `memory`), cùng với `general` và `unknown`.
 - `IntentClassifier` gọi LLM với yêu cầu trả JSON theo schema cố định. Kết quả được validate bằng Pydantic.
-- Kết quả không hợp lệ hoặc LLM lỗi: dùng `unknown`.
+- Khi chưa có Tool nào được đăng ký, bộ phân loại trả `general` ngay và không gọi LLM.
+- Kết quả không hợp lệ (không phải JSON, intent ngoài danh sách): dùng `general` và ghi log WARNING. Trả lời không dùng Tool không thể thay đổi dữ liệu, nên đây là phương án dự phòng an toàn.
+- LLM lỗi (không kết nối được, quá thời gian): exception được chuyển tiếp; request trả lỗi 503/504.
 - `general`: trả lời không dùng Tool. `unknown`: trợ lý hỏi lại người dùng để làm rõ.
 
 Lý do giữ bước riêng:
@@ -209,7 +212,7 @@ Quy tắc:
 - Tool nhận dependency qua constructor tại `app/bootstrap.py`. Mỗi lần thực thi mở một session và transaction riêng.
 - `effect=write` đánh dấu Tool làm thay đổi dữ liệu. Cơ chế xác nhận của người dùng cho thao tác ghi sẽ được thiết kế khi Tool ghi đầu tiên được triển khai.
 
-Phase 4 chỉ xây contract, Registry, Executor và một Tool mẫu phục vụ kiểm thử. Tool nghiệp vụ được thêm cùng module tương ứng.
+Hiện chưa có Tool nghiệp vụ nào. Registry rỗng khi chạy thật; Tool mẫu chỉ tồn tại trong `tests/ai_support.py`. Tool nghiệp vụ được thêm cùng module tương ứng, tại `build_tool_registry()` trong `app/bootstrap.py`.
 
 ## 7. Tool Execution
 
@@ -233,7 +236,7 @@ classDiagram
         <<interface>>
         +name: str
         +chat(messages, tools, response_schema) LLMResponse
-        +check_health() ProviderHealth
+        +is_available() bool
     }
     class LLMResponse {
         +content: str
@@ -258,7 +261,7 @@ classDiagram
 - `OllamaProvider` chuyển lỗi thành exception của hệ thống:
 
 | Tình huống | Exception |
-|---|---|
+| --- | --- |
 | Không kết nối được | `ExternalServiceUnavailableError` |
 | Quá thời gian | `ExternalServiceTimeoutError` |
 | HTTP lỗi hoặc JSON sai cấu trúc | `ExternalServiceError` |
@@ -269,7 +272,11 @@ classDiagram
 
 Streaming chưa nằm trong interface. Khi cần, bổ sung phương thức `stream_chat` mà không đổi `chat`.
 
-Định dạng chính xác của API Tool calling và structured output của Ollama sẽ được đối chiếu với tài liệu chính thức khi triển khai Phase 4.
+`OllamaProvider` dùng `POST /api/chat` (`stream: false`, `tools`, `format`) và `GET /api/version`, đã đối chiếu với tài liệu API chính thức của Ollama ngày 2026-11-14. Ollama không cấp ID cho tool call; adapter tự sinh ID.
+
+`OLLAMA_MODEL` rỗng nghĩa là chưa cấu hình: ứng dụng vẫn khởi động, endpoint chat trả lỗi `llm_not_configured` (503).
+
+**Chưa kiểm thử với Ollama thật.** Adapter mới được kiểm thử bằng HTTP transport giả.
 
 ## 9. Conversation Context và Memory Retrieval
 
@@ -283,7 +290,7 @@ Streaming chưa nằm trong interface. Khi cần, bổ sung phương thức `str
 ## 10. Xử lý khi AI hoạt động sai
 
 | Tình huống | Hành vi |
-|---|---|
+| --- | --- |
 | LLM không phản hồi hoặc Ollama không chạy | Router trả lỗi 503/504 theo error envelope. Tin nhắn người dùng vẫn được lưu |
 | LLM chọn Tool không tồn tại | `ToolResult` lỗi gửi lại cho LLM; tính vào giới hạn vòng lặp |
 | LLM tạo tham số sai | Lỗi validation gửi lại cho LLM để sửa; tính vào giới hạn vòng lặp |
@@ -297,7 +304,7 @@ Streaming chưa nằm trong interface. Khi cần, bổ sung phương thức `str
 Mỗi lượt xử lý ghi các trường theo CLAUDE.md mục 6.4:
 
 | Trường | Nội dung |
-|---|---|
+| --- | --- |
 | `request_id` | Liên kết với log của HTTP request |
 | `conversation_id`, `message_id` | Định danh hội thoại và tin nhắn |
 | `intent` | Intent được nhận diện |
@@ -321,7 +328,7 @@ Lọc dữ liệu nhạy cảm: `execution_log.py` che giá trị của các tr�
 Mọi test AI dùng `MockLLMProvider`. Không test nào cần Ollama.
 
 | Đối tượng | Nội dung kiểm thử |
-|---|---|
+| --- | --- |
 | `ToolRegistry` | Đăng ký, tên trùng, tra cứu theo intent |
 | `ToolExecutor` | Input sai, Tool không tồn tại, timeout, lỗi nghiệp vụ, output sai, luồng thành công |
 | `IntentClassifier` | Kết quả hợp lệ, JSON sai, provider lỗi |

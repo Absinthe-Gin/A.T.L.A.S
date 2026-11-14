@@ -1,11 +1,11 @@
 # Kiến trúc Database
 
-> Trạng thái: **Đã phê duyệt.** Phase 2 và Phase 3 đã triển khai; phần AI (Phase 4) chưa triển khai.
+> Trạng thái: **Đã phê duyệt và đã triển khai** (Phase 1–6). Tài liệu mô tả code hiện tại.
 
 ## 1. Công nghệ
 
 | Thành phần | Lựa chọn |
-|---|---|
+| --- | --- |
 | Database MVP | SQLite (một file trong `backend/data/`) |
 | Database tương lai | PostgreSQL |
 | ORM | SQLAlchemy 2.0 async |
@@ -20,7 +20,7 @@
 - Khóa ngoại liên module chỉ là cột ID, không có `relationship()`. Hiện chỉ có `user_id → users.id`.
 
 | Bảng | Module sở hữu |
-|---|---|
+| --- | --- |
 | `users` | `users` |
 | `conversations`, `messages`, `memories` | `memory` |
 | `transaction_categories`, `transactions`, `budgets` | `finance` |
@@ -35,7 +35,7 @@
 - Ràng buộc và index đặt tên theo naming convention khai báo trên `MetaData`:
 
 | Loại | Mẫu tên |
-|---|---|
+| --- | --- |
 | Primary key | `pk_<bảng>` |
 | Foreign key | `fk_<bảng>_<cột>_<bảng_tham_chiếu>` |
 | Unique | `uq_<bảng>_<cột>` |
@@ -189,7 +189,7 @@ Trách nhiệm: định danh chủ sở hữu dữ liệu.
 Trách nhiệm: một phiên hội thoại.
 
 | Ràng buộc | Chi tiết |
-|---|---|
+| --- | --- |
 | FK | `user_id → users.id`, `RESTRICT` |
 | Index | `(user_id, updated_at)` — liệt kê hội thoại gần nhất |
 
@@ -198,7 +198,7 @@ Trách nhiệm: một phiên hội thoại.
 Trách nhiệm: một tin nhắn hoặc một bản ghi thực thi Tool trong hội thoại.
 
 | Ràng buộc | Chi tiết |
-|---|---|
+| --- | --- |
 | FK | `conversation_id → conversations.id`, `CASCADE` |
 | Unique | `(conversation_id, sequence)` — thứ tự xác định trong hội thoại |
 | `role` | `user`, `assistant`, `tool`, `system` |
@@ -212,7 +212,7 @@ Trách nhiệm: một tin nhắn hoặc một bản ghi thực thi Tool trong h�
 Trách nhiệm: thông tin cá nhân dài hạn.
 
 | Ràng buộc | Chi tiết |
-|---|---|
+| --- | --- |
 | FK | `user_id → users.id`, `RESTRICT` |
 | FK | `source_message_id → messages.id`, `SET NULL` — xóa hội thoại không xóa Memory |
 | Index | `(user_id, category)` |
@@ -267,7 +267,7 @@ Thiết lập riêng cho SQLite:
 Kiểm thử migration (Phase 5):
 
 | Test | Mục đích |
-|---|---|
+| --- | --- |
 | `upgrade head` trên database trống | Migration chạy được từ đầu |
 | `upgrade head` → `downgrade base` → `upgrade head` | `downgrade` hoạt động |
 | So sánh metadata của model với schema sau migration | Phát hiện model thay đổi mà thiếu migration |
@@ -277,7 +277,7 @@ Kiểm thử migration (Phase 5):
 Các quyết định đã chuẩn bị cho việc chuyển đổi:
 
 | Vấn đề | Cách xử lý |
-|---|---|
+| --- | --- |
 | Kiểu dữ liệu | Chỉ dùng kiểu chung của SQLAlchemy: `Uuid`, `BigInteger`, `DateTime`, `Date`, `JSON`, `String`, `Text` |
 | Chuỗi kết nối | Một biến `DATABASE_URL` |
 | Tên ràng buộc | Naming convention thống nhất |

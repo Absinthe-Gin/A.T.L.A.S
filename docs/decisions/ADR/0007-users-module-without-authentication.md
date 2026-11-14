@@ -9,10 +9,10 @@ MVP phục vụ một người dùng trên máy cá nhân. Authentication ảnh 
 
 ## Quyết định
 
-- Thêm module `users`, sở hữu bảng `users`. Module này không có trong danh sách của CLAUDE.md mục 3.2.
+- Thêm module `users`, sở hữu bảng `users`. Module này đã được bổ sung vào CLAUDE.md mục 3.2.
 - Migration đầu tiên tạo một người dùng mặc định với ID cố định `00000000-0000-0000-0000-000000000001`.
 - Mọi bảng dữ liệu cá nhân có cột `user_id` trỏ tới `users.id`.
-- Chưa triển khai authentication. Backend lắng nghe `127.0.0.1` theo mặc định của uvicorn.
+- Chưa triển khai authentication. Backend lắng nghe `127.0.0.1` (giá trị mặc định của `API_HOST`).
 
 ## Hệ quả
 

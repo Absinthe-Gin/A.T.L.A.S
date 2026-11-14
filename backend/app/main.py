@@ -1,17 +1,19 @@
 """Application factory.
 
-Run with: ``uv run uvicorn app.main:create_app --factory --reload``
+Run with: ``uv run python -m app``
 """
 
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
 from app.api.v1 import router as api_v1_router
+from app.bootstrap import build_ai_runtime
 from app.core.config import Settings, get_settings
 from app.core.error_handlers import register_error_handlers
 from app.core.logging import configure_logging
@@ -30,13 +32,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         engine = create_engine(settings.database_url)
         app.state.engine = engine
         app.state.session_factory = create_session_factory(engine)
+        # One client for every outbound call; each adapter sets its own timeout.
+        http_client = httpx.AsyncClient()
+        # A test may install its own runtime before startup (e.g. a scripted provider).
+        if not hasattr(app.state, "ai_runtime"):
+            app.state.ai_runtime = build_ai_runtime(settings, http_client)
         logger.info(
             "Application started",
-            extra={"environment": settings.app_env.value, "version": __version__},
+            extra={
+                "environment": settings.app_env.value,
+                "version": __version__,
+                "llm_provider": app.state.ai_runtime.provider.name,
+            },
         )
         try:
             yield
         finally:
+            await http_client.aclose()
             await engine.dispose()
             logger.info("Application stopped")
 

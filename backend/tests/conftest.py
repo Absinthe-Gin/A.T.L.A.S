@@ -14,7 +14,7 @@ import pytest
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.core.config import AppEnvironment, Settings
+from app.core.config import AppEnvironment, LLMProviderName, Settings
 from app.main import create_app
 from tests.database import sqlite_url, upgrade_to_head
 
@@ -23,8 +23,10 @@ def build_test_settings(database_path: Path, **overrides: object) -> Settings:
     values: dict[str, object] = {
         "app_env": AppEnvironment.TESTING,
         "database_url": sqlite_url(database_path),
-        "cors_allowed_origins": "http://localhost:5173",
+        "cors_allowed_origins": "http://localhost:5710",
         "log_level": "DEBUG",
+        # Tests never contact a real LLM service.
+        "llm_provider": LLMProviderName.MOCK,
     }
     values.update(overrides)
     # `_env_file=None` disables `.env` loading for this instance.

@@ -1,11 +1,11 @@
 # Quy trình phát triển
 
-> Trạng thái: **Đã phê duyệt.** Phase 2 và Phase 3 đã triển khai; phần AI (Phase 4) chưa triển khai.
+> Trạng thái: **Đã phê duyệt và đã triển khai** (Phase 1–6). Tài liệu mô tả code hiện tại.
 
 ## 1. Yêu cầu môi trường
 
 | Công cụ | Phiên bản | Bắt buộc |
-|---|---|---|
+| --- | --- | --- |
 | Python | 3.14 | Có |
 | uv | 0.11 trở lên | Có |
 | Node.js | 24 | Có |
@@ -24,7 +24,7 @@ Khuyến nghị: chuyển repository ra thư mục không đồng bộ (ví dụ
 ## 2. Cấu hình môi trường
 
 | Môi trường | `APP_ENV` | Database | LLM Provider | Nguồn cấu hình |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | Development | `development` | `backend/data/app.db` | `ollama` | `backend/.env` |
 | Testing | `testing` | SQLite tạm, tạo mới cho mỗi lần chạy | `mock` | `tests/conftest.py` |
 | Production | `production` | Cấu hình tường minh | Cấu hình tường minh | Biến môi trường |
@@ -37,12 +37,12 @@ Khuyến nghị: chuyển repository ra thư mục không đồng bộ (ví dụ
 ### Backend (chạy trong `backend/`)
 
 | Mục đích | Lệnh |
-|---|---|
+| --- | --- |
 | Cài dependency | `uv sync` |
 | Tạo file cấu hình | Sao chép `.env.example` thành `.env` |
 | Áp dụng migration | `uv run alembic upgrade head` |
 | Tạo migration | `uv run alembic revision --autogenerate -m "<mô tả>"` |
-| Chạy server | `uv run uvicorn app.main:create_app --factory --reload` |
+| Chạy server | `uv run python -m app` |
 | Chạy test | `uv run pytest` |
 | Lint | `uv run ruff check .` |
 | Kiểm tra định dạng | `uv run ruff format --check .` |
@@ -51,7 +51,7 @@ Khuyến nghị: chuyển repository ra thư mục không đồng bộ (ví dụ
 ### Frontend (chạy trong `frontend/`)
 
 | Mục đích | Lệnh |
-|---|---|
+| --- | --- |
 | Cài dependency | `npm install` |
 | Tạo file cấu hình | Sao chép `.env.example` thành `.env` |
 | Chạy dev server | `npm run dev` |
@@ -88,7 +88,7 @@ flowchart TD
 ### 4.1. Backend
 
 | Loại test | Phạm vi | Phụ thuộc thật | Phụ thuộc giả |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Unit | Một service hoặc hàm | Không | Repository, provider |
 | Repository | Truy vấn SQLAlchemy | SQLite tạm | Không |
 | API | Router → service → repository | SQLite tạm | LLM Provider |
@@ -191,14 +191,14 @@ Với lỗi trong luồng Chat: AI execution log cho biết intent, Tool, tham s
 Dependency Backend:
 
 | Nhóm | Gói |
-|---|---|
+| --- | --- |
 | Runtime | `fastapi`, `uvicorn`, `pydantic-settings`, `sqlalchemy[asyncio]`, `aiosqlite`, `alembic`, `httpx` |
 | Dev | `pytest`, `pytest-asyncio`, `ruff`, `mypy` |
 
 Dependency Frontend:
 
 | Nhóm | Gói |
-|---|---|
+| --- | --- |
 | Runtime | `react`, `react-dom`, `react-router`, `axios` |
 | Dev | `vite`, `typescript`, `tailwindcss`, `@tailwindcss/vite`, `vitest`, `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `jsdom`, `oxlint` |
 
@@ -207,7 +207,7 @@ Phiên bản cụ thể được ghi trong lock file.
 ## 10. Lộ trình các Phase
 
 | Phase | Nội dung | Điều kiện bắt đầu |
-|---|---|---|
+| --- | --- | --- |
 | 1 | Khảo sát và thiết kế kiến trúc | — |
 | 2 | Cấu trúc dự án và nền tảng phát triển | Phase 1 được phê duyệt |
 | 3 | Nền tảng database | Phase 2 được xác minh |

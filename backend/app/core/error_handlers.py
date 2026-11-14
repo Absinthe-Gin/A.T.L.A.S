@@ -79,7 +79,8 @@ async def _handle_request_validation_error(request: Request, exc: Exception) -> 
         ErrorDetail(
             # The first location item is the request part (body, query, path).
             field=".".join(str(part) for part in error["loc"][1:]) or None,
-            message=str(error["msg"]),
+            # Pydantic prefixes messages raised by custom validators.
+            message=str(error["msg"]).removeprefix("Value error, "),
         )
         for error in exc.errors()
     ]

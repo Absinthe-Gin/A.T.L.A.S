@@ -7,6 +7,8 @@
 > Claude Code phải đọc, hiểu và tuân thủ các quy tắc trong file này trước khi thực hiện bất kỳ thay đổi nào đối với mã nguồn.
 >
 > **Không được tự ý bỏ qua, thay đổi hoặc diễn giải lại các quy tắc bắt buộc nếu chưa có sự chấp thuận của người dùng.**
+>
+> Mục 1–22 là nguyên tắc. **Mục 23 là quy ước cụ thể của codebase hiện tại** (cấu trúc thư mục, tên file, lệnh, địa chỉ chạy). Khi viết code, phải làm đúng mục 23.
 
 ---
 
@@ -40,6 +42,13 @@ Các chức năng chính:
 | Map | Leaflet, OpenStreetMap |
 | Testing Backend | Pytest |
 | Testing Frontend | Vitest, React Testing Library |
+| Routing Frontend | React Router |
+| HTTP client Frontend | Axios |
+| HTTP client Backend | httpx |
+| Database driver | aiosqlite (SQLAlchemy async) |
+| Quản lý dependency Backend | uv (`pyproject.toml`, `uv.lock`) |
+| Lint, format, type check Backend | Ruff, mypy (strict) |
+| Lint Frontend | oxlint |
 | Version Control | Git |
 
 **Nguyên tắc:** Không tự ý thay đổi công nghệ cốt lõi, thêm framework hoặc thư viện lớn khi chưa phân tích lý do và được người dùng chấp thuận.
@@ -125,16 +134,25 @@ AI Personal Assistant
 │   ├── Place Details
 │   └── Recommendations
 │
-└── Dashboard
-    ├── Overview
-    └── Aggregated Data
+├── Dashboard
+│   ├── Overview
+│   └── Aggregated Data
+│
+├── Users
+│   └── Current User (người dùng cục bộ mặc định, chưa có authentication)
+│
+└── Health
+    └── Health Check (module kỹ thuật, không chứa nghiệp vụ)
 ```
+
+Trạng thái triển khai: `health`, `users`, `memory`, `ai` đã có code. `finance`, `travel`, `food`, `dashboard` chưa có; chỉ tạo thư mục module khi có yêu cầu triển khai.
 
 Quy định:
 
 - Mỗi module phải chịu trách nhiệm cho một nhóm nghiệp vụ cụ thể.
 - Không để một module phụ thuộc trực tiếp vào cấu trúc nội bộ của module khác.
 - Giao tiếp giữa các module thông qua public interface, service hoặc contract đã xác định.
+- Public interface của một module là file `public.py` của module đó. Module khác chỉ được import `app.modules.<module>.public`.
 - Không truy cập trực tiếp repository hoặc database của module khác.
 - Không tạo circular dependency.
 - Không để module Dashboard chứa logic nghiệp vụ của Finance, Travel hoặc Food Discovery.
@@ -246,7 +264,8 @@ Không được:
 
 - Đơn vị tiền tệ mặc định: VND.
 - Không sử dụng số thực `float` để lưu trữ hoặc tính toán tiền.
-- Sử dụng kiểu số nguyên hoặc Decimal phù hợp với thiết kế dữ liệu.
+- Lưu số tiền bằng số nguyên (`BigInteger`), đơn vị đồng. API nhận và trả số tiền dạng số nguyên (ADR-0004).
+- Mỗi bản ghi tiền có cột `currency` (`CHAR(3)`, mặc định `VND`).
 - Thống nhất quy tắc làm tròn.
 - Không để LLM tự tính tổng thu, chi, số dư hoặc ngân sách.
 - Các phép tính tài chính phải được thực hiện bởi Backend.
@@ -899,20 +918,26 @@ docs/
 │   ├── system-overview.md
 │   ├── backend-architecture.md
 │   ├── frontend-architecture.md
-│   └── ai-architecture.md
+│   ├── ai-architecture.md
+│   ├── database-architecture.md
+│   └── development-workflow.md
 │
 ├── decisions/
-│   └── ADR/
+│   └── ADR/                 # NNNN-ten-quyet-dinh.md
 │
-├── modules/
+├── modules/                 # Tạo khi có module nghiệp vụ đầu tiên
 │
 ├── api/
+│   └── api-reference.md
 │
 ├── database/
+│   └── schema.md            # Schema ĐANG tồn tại trong database
 │
 ├── testing/
+│   └── testing-guide.md
 │
 └── debugging/
+    └── debugging-guide.md
 ```
 
 Bắt buộc:
@@ -990,7 +1015,7 @@ Claude Code phải tự kiểm tra các mục sau trước khi báo cáo hoàn t
 - [ ] Code nằm đúng module.
 - [ ] Code nằm đúng tầng kiến trúc.
 - [ ] Không tạo circular dependency.
-- [ ] Không vi phạm ranh giới module.
+- [ ] Không vi phạm ranh giới module (import liên module chỉ qua `public.py`).
 - [ ] Không tạo abstraction không cần thiết.
 
 ## Chất lượng code
@@ -1023,6 +1048,7 @@ Claude Code phải tự kiểm tra các mục sau trước khi báo cáo hoàn t
 - [ ] Đã bổ sung hoặc cập nhật test phù hợp.
 - [ ] Đã chạy test liên quan.
 - [ ] Đã kiểm tra lỗi build/lint/type checking khi phù hợp.
+- [ ] Toàn bộ lệnh ở mục 23.10 đều đạt.
 - [ ] Không bỏ qua test thất bại.
 - [ ] Kết quả kiểm thử được báo cáo trung thực.
 
@@ -1050,3 +1076,238 @@ Trong toàn bộ quá trình phát triển AI Personal Assistant, phải ưu ti�
 **Không hy sinh tính đúng đắn, khả năng bảo trì và khả năng debug để đổi lấy việc viết code nhanh hơn.**
 
 Mọi thay đổi phải hướng đến một hệ thống có cấu trúc rõ ràng, trách nhiệm phân tách hợp lý, có thể kiểm thử, dễ mở rộng và dễ tiếp tục phát triển trong dài hạn.
+---
+
+# 23. QUY ƯỚC TRIỂN KHAI CỦA CODEBASE
+
+Mục này ghi lại các quy ước cụ thể đã được phê duyệt và đang được áp dụng trong source code. Code mới phải theo đúng các quy ước này. Lý do của từng quyết định nằm trong `docs/decisions/ADR/`.
+
+Nếu cần làm khác một quy ước ở đây, phải trình bày lý do, chờ người dùng phê duyệt, rồi cập nhật mục này và ADR liên quan trong cùng thay đổi.
+
+## 23.1. Cấu trúc repository
+
+```text
+A.T.L.A.S/
+├── CLAUDE.md
+├── README.md
+├── backend/
+│   ├── pyproject.toml, uv.lock, alembic.ini, .env.example
+│   ├── alembic/                 # env.py, versions/
+│   ├── app/
+│   │   ├── __main__.py          # `python -m app`: chạy server theo Settings
+│   │   ├── main.py              # create_app()
+│   │   ├── bootstrap.py         # Composition root: nơi DUY NHẤT biết mọi module
+│   │   ├── api/v1.py            # Gom router của các module dưới /api/v1
+│   │   ├── core/                # config, logging, middleware, exceptions, error_handlers
+│   │   ├── shared/              # Contract dùng chung (tools.py)
+│   │   ├── infrastructure/      # database/: base.py, session.py, models.py
+│   │   └── modules/<module>/
+│   └── tests/                   # Phản chiếu cấu trúc app/
+├── frontend/
+│   ├── package.json, vite.config.ts, .env.example
+│   └── src/                     # app, pages, features, components, hooks, services, config, types, utils
+└── docs/
+```
+
+- Không có `.env.example` ở thư mục gốc. Backend và Frontend có file riêng.
+- Không tạo thư mục hoặc file rỗng. File chỉ xuất hiện khi có nội dung thực.
+
+## 23.2. Module Backend
+
+Mỗi module nằm trong `backend/app/modules/<module>/` và chỉ chứa các file nó thực sự cần:
+
+| File | Nội dung |
+|---|---|
+| `public.py` | Public interface DUY NHẤT của module |
+| `router.py` | Endpoint FastAPI |
+| `schemas.py` | Pydantic request/response và DTO trao đổi giữa module |
+| `service.py` | Use case và quy tắc nghiệp vụ |
+| `repository.py` | Truy vấn SQLAlchemy |
+| `models.py` | ORM model |
+| `dependencies.py` | Hàm factory cho FastAPI `Depends` |
+| `exceptions.py` | Lỗi riêng của module, kế thừa `AppError` |
+| `tools.py` | Tool cung cấp cho AI (nếu có) |
+
+Quy tắc phụ thuộc (được kiểm tra bởi `tests/architecture/test_module_boundaries.py`):
+
+- Module khác chỉ import `app.modules.<module>.public`.
+- `app.modules.ai` không import `finance`, `travel`, `food`, `dashboard`.
+- `app.core`, `app.shared`, `app.infrastructure` không import `app.modules`. Ngoại lệ duy nhất: `infrastructure/database/models.py` import `models` của mọi module.
+- `service.py` không import `fastapi` hoặc `starlette`.
+- Hướng phụ thuộc hiện tại: `health` → `ai`; `ai` → `memory`, `users`. Không tạo chiều ngược lại.
+
+Khi một file vượt quá khoảng 300 dòng hoặc chứa nhiều nhóm nghiệp vụ, tách thành package cùng tên.
+
+## 23.3. Tầng xử lý Backend
+
+- Service là class Python thuần, nhận dependency qua constructor. Không dùng DI container.
+- **Service sở hữu transaction** và gọi `commit()`. Repository chỉ `add`, `flush`, `execute`; repository không `commit()`.
+- Mỗi request dùng một `AsyncSession` từ dependency `get_session`.
+- Service ném exception kế thừa `AppError` (`app/core/exceptions.py`). Router không có `try/except`.
+- Chọn lớp cha theo loại lỗi: `ValidationFailedError` (422), `NotFoundError` (404), `ConflictError` (409), `BusinessRuleError` (422), `ExternalServiceError` (502), `ExternalServiceTimeoutError` (504), `ExternalServiceUnavailableError` (503).
+- Lỗi của module đặt `code` dạng `snake_case` và `message` tiếng Việt hiển thị được cho người dùng.
+- Adapter bắt lỗi của thư viện và ném lại bằng `raise ... from error`.
+- Dữ liệu trả ra khỏi module là Pydantic model hoặc kiểu nguyên thủy, không phải ORM model.
+- Logger: `logger = logging.getLogger(__name__)`. Ngữ cảnh truyền qua `extra={...}`, không nối vào chuỗi thông điệp. Thông điệp log viết bằng tiếng Anh.
+- Đối tượng sống suốt vòng đời ứng dụng được tạo trong `lifespan` và lưu ở `app.state`.
+
+## 23.4. Database
+
+- Khóa chính: `UuidPrimaryKeyMixin` (UUID sinh ở ứng dụng).
+- Thời gian: kiểu `UtcDateTime`, luôn là `datetime` có timezone. Dùng `TimestampMixin` hoặc `CreatedAtMixin`. Giá trị `datetime` không có timezone bị từ chối.
+- Giá trị liệt kê: `StrEnum` lưu dạng chuỗi (`native_enum=False`). Không dùng kiểu `ENUM` của database.
+- Mọi khóa ngoại khai báo `ondelete` tường minh. Mặc định `RESTRICT`. `CASCADE` chỉ dùng cho quan hệ thành phần.
+- Mọi `relationship()` đặt `lazy="raise"`. Dữ liệu liên quan được nạp tường minh bằng `selectinload` hoặc `joinedload`.
+- Không khai báo `relationship()` giữa model của hai module. Khóa ngoại liên module chỉ là cột ID.
+- Mọi bảng dữ liệu cá nhân có cột `user_id` trỏ tới `users.id`.
+- Tên ràng buộc do naming convention trong `infrastructure/database/base.py` sinh ra. Không đặt tên thủ công trái quy ước.
+- Không dùng SQL thô và không dùng `Base.metadata.create_all()` trong code ứng dụng.
+
+Migration:
+
+- Sinh bằng `uv run alembic revision --autogenerate -m "<mô tả>"`, sau đó **đọc và chỉnh** file trước khi áp dụng.
+- File migration không import code ứng dụng.
+- Mỗi migration có `downgrade()` hoạt động được. Migration làm mất dữ liệu phải được nêu rõ và chờ phê duyệt.
+- Model mới phải được import trong `app/infrastructure/database/models.py`.
+- Sau khi đổi schema: cập nhật `docs/database/schema.md`.
+
+## 23.5. API
+
+- Mọi endpoint nằm dưới `/api/v1`. Router của module được thêm vào `app/api/v1.py`.
+- Mọi lỗi trả cùng một cấu trúc:
+
+```json
+{
+  "error": {
+    "code": "conversation_not_found",
+    "message": "Không tìm thấy cuộc hội thoại.",
+    "details": [],
+    "request_id": "0c1f7e0e6f0b4d3f9a1f3b6f2c5d7e9a"
+  }
+}
+```
+
+- Danh sách có khả năng tăng trưởng trả dạng `{"items": [], "total": 0, "limit": 20, "offset": 0}`.
+- Mọi response có header `X-Request-ID`.
+- Sau khi thêm hoặc đổi endpoint: cập nhật `docs/api/api-reference.md` và kiểu dữ liệu tương ứng ở Frontend.
+
+## 23.6. AI Core
+
+- Tool contract nằm tại `app/shared/tools.py`: `Tool`, `ToolSpec`, `ToolContext`, `ToolResult`.
+- Tool của một module được định nghĩa trong `modules/<module>/tools.py` và đăng ký tại `build_tool_registry()` trong `app/bootstrap.py`.
+- Tên Tool có dạng `<domain>_<action>`, chỉ gồm chữ thường, số và dấu gạch dưới. `domain` trùng với intent chọn Tool đó.
+- Mỗi Tool có `input_model` và `output_model` là Pydantic model. JSON Schema gửi cho model được sinh từ `input_model`; không viết schema bằng tay.
+- `user_id` và `conversation_id` luôn lấy từ `ToolContext`. Không bao giờ nhận chúng từ tham số do model tạo.
+- Tool không chứa quy tắc nghiệp vụ. Tool gọi service của chính module đó.
+- Tool làm thay đổi dữ liệu khai báo `effect=ToolEffect.WRITE`.
+- `ToolExecutor` biến mọi thất bại của Tool thành `ToolResult`. Tool ném `AppError` cho lỗi nghiệp vụ; không tự bắt exception để trả chuỗi lỗi.
+- Mọi lời gọi model đi qua interface `LLMProvider`. Chỉ code trong `modules/ai/providers/` được gửi request tới dịch vụ LLM.
+- Nhà cung cấp mới: thêm một adapter trong `modules/ai/providers/` và một nhánh trong `factory.py`.
+- Tin nhắn của người dùng được lưu trước khi gọi model.
+- Giới hạn vòng Tool, timeout và kích thước ngữ cảnh lấy từ `Settings`, không hardcode.
+- Dữ liệu ghi vào AI execution log phải đi qua `redact()`.
+
+## 23.7. Frontend
+
+- Import nội bộ dùng alias `@/` (trỏ tới `src/`).
+- Hướng import: `app` → `pages` → `features` → `components` / `hooks` / `services` → `utils` / `types` / `config`. Không import ngược. Feature không import file nội bộ của feature khác.
+- Một feature nằm trong `src/features/<feature>/` gồm `api.ts`, `types.ts`, `hooks/`, `components/`.
+- Chỉ `features/<feature>/api.ts` gọi `apiClient`. Component và hook không import Axios.
+- Chỉ `src/config/env.ts` đọc `import.meta.env`.
+- Mọi lỗi từ tầng API là `ApiError` (`src/services/api/errors.ts`). Component hiển thị `error.message` và `error.requestId`.
+- Luồng tải dữ liệu dùng `useAsyncData` và hiển thị đủ các trạng thái Loading, Empty, Error, Success.
+- Kiểu dữ liệu trao đổi với Backend đặt trong `features/<feature>/types.ts`, kèm ghi chú schema Backend tương ứng.
+- Lỗi bất ngờ được báo qua `reportError`, không gọi `console.error` trực tiếp.
+- Không dùng `any`. Không dùng `enum` và parameter property của TypeScript (`erasableSyntaxOnly`).
+- Văn bản giao diện viết bằng tiếng Việt.
+- File test đặt cạnh file nguồn: `X.tsx` và `X.test.tsx`.
+
+## 23.8. Cấu hình và địa chỉ chạy
+
+| Thành phần | Địa chỉ mặc định | Biến cấu hình |
+|---|---|---|
+| Backend API | `http://127.0.0.1:8710` | `API_HOST`, `API_PORT` (`backend/.env`) |
+| Frontend dev server | `http://localhost:5710` | `VITE_DEV_SERVER_PORT` (`frontend/.env`) |
+| Ollama | `http://localhost:11434` | `OLLAMA_BASE_URL` (`backend/.env`) |
+
+- Dự án dùng cổng **8710** và **5710**. Không dùng lại 8000 và 5173, vì các cổng đó trùng với dự án khác trên cùng máy.
+- `VITE_API_BASE_URL` phải khớp `API_PORT`. `CORS_ALLOWED_ORIGINS` phải khớp cổng Frontend. Khi đổi một giá trị, đổi cả giá trị đi cùng và cập nhật `README.md`.
+- Backend chỉ lắng nghe `127.0.0.1` cho đến khi có authentication.
+- Biến cấu hình Backend mới phải được thêm đồng thời vào: class `Settings` (`app/core/config.py`), `backend/.env.example`, bảng cấu hình trong `docs/architecture/backend-architecture.md`, và test trong `tests/core/test_config.py`.
+- Không đọc `os.environ` ngoài `app/core/config.py`.
+
+## 23.9. Kiểm thử
+
+- Test không cần Ollama, không cần mạng, không đọc `.env` của người phát triển và không dùng `backend/data/app.db`.
+- Test Backend dùng fixture trong `tests/conftest.py`: `database_path`, `settings`, `app`, `client`, `session`. Database của test được tạo bằng migration thật.
+- Repository và ràng buộc database được kiểm thử trên SQLite thật. Không mock SQLAlchemy.
+- Test AI dùng `MockLLMProvider` và các Tool mẫu trong `tests/ai_support.py`. Test kiểm tra hành vi (Tool nào chạy, tham số nào, dữ liệu nào được lưu), không so sánh nguyên văn câu trả lời.
+- Adapter dịch vụ ngoài được kiểm thử bằng `httpx.MockTransport`.
+- Test Frontend không gọi Backend thật: dùng `vi.mock` cho `api.ts` của feature, hoặc truyền `adapter` giả vào `createApiClient`.
+- Tên test mô tả hành vi được kiểm tra, ví dụ `test_tool_loop_stops_at_the_iteration_limit`.
+
+## 23.10. Lệnh và cổng chất lượng
+
+Chạy Backend trong `backend/`:
+
+| Mục đích | Lệnh |
+|---|---|
+| Cài dependency | `uv sync` |
+| Áp dụng migration | `uv run alembic upgrade head` |
+| Chạy server | `uv run python -m app` |
+| Thêm dependency | `uv add <gói>` hoặc `uv add --dev <gói>` |
+
+Chạy Frontend trong `frontend/`:
+
+| Mục đích | Lệnh |
+|---|---|
+| Cài dependency | `npm install` |
+| Chạy dev server | `npm run dev` |
+
+**Cổng chất lượng.** Một task chỉ được báo hoàn thành khi mọi lệnh sau đều đạt:
+
+```bash
+# backend/
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy app tests
+uv run alembic check
+
+# frontend/
+npm run test
+npm run lint
+npm run build
+```
+
+Chỉ cần chạy nhóm lệnh của phần đã thay đổi. Báo cáo phải nêu số test đạt và thất bại lấy từ kết quả chạy thực tế.
+
+## 23.11. Quy trình cho các thay đổi thường gặp
+
+Thêm module nghiệp vụ:
+
+1. Tạo `app/modules/<module>/` theo mục 23.2.
+2. Import `models` của module trong `app/infrastructure/database/models.py`.
+3. Tạo và rà soát migration.
+4. Thêm router vào `app/api/v1.py`.
+5. Viết test trong `tests/modules/<module>/`.
+6. Cập nhật `docs/database/schema.md`, `docs/api/api-reference.md` và mục 3.2 của file này.
+
+Thêm Tool cho AI:
+
+1. Định nghĩa Tool trong `modules/<module>/tools.py` theo mục 23.6.
+2. Đăng ký tại `build_tool_registry()` trong `app/bootstrap.py`.
+3. Viết test cho: input hợp lệ, input không hợp lệ, lỗi nghiệp vụ, và một lượt chat dùng Tool qua `MockLLMProvider`.
+
+Thêm màn hình Frontend:
+
+1. Tạo `src/features/<feature>/` theo mục 23.7.
+2. Tạo trang trong `src/pages/` và thêm route vào `src/app/router.tsx`.
+3. Viết test cho component, hook và hàm trong `api.ts`.
+
+## 23.12. Lưu ý môi trường
+
+- Vitest báo "failed to find the current suite" khi terminal đứng ở đường dẫn có ký tự ổ đĩa viết thường (`c:\...`). Chạy từ `C:\...`.
+- Repository hiện nằm trong thư mục OneDrive. Lỗi khóa file hoặc `database is locked` cần được xem xét theo nguyên nhân này trước.
+- Khi chuyển hướng log Backend vào file trên Windows, đặt `PYTHONUTF8=1` để chữ tiếng Việt không bị thay bằng mã escape.
+- Chi tiết: `docs/debugging/debugging-guide.md`.

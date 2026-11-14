@@ -4,10 +4,13 @@ import type { HealthResponse } from '../types'
 const BADGE_BASE = 'inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-medium'
 const BADGE_OK = `${BADGE_BASE} bg-emerald-100 text-emerald-800`
 const BADGE_PROBLEM = `${BADGE_BASE} bg-red-100 text-red-800`
+// The app still works without the LLM, so this is a warning, not an error.
+const BADGE_WARNING = `${BADGE_BASE} bg-amber-100 text-amber-800`
 
 function HealthDetails({ health }: { health: HealthResponse }) {
   const isHealthy = health.status === 'ok'
   const isDatabaseOk = health.checks.database === 'ok'
+  const isLlmOk = health.checks.llm.status === 'ok'
 
   return (
     <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
@@ -21,6 +24,12 @@ function HealthDetails({ health }: { health: HealthResponse }) {
       <dd>
         <span className={isDatabaseOk ? BADGE_OK : BADGE_PROBLEM}>
           {isDatabaseOk ? 'Kết nối tốt' : 'Lỗi kết nối'}
+        </span>
+      </dd>
+      <dt className="text-slate-500">AI ({health.checks.llm.provider})</dt>
+      <dd>
+        <span className={isLlmOk ? BADGE_OK : BADGE_WARNING}>
+          {isLlmOk ? 'Sẵn sàng' : 'Chưa sẵn sàng'}
         </span>
       </dd>
       <dt className="text-slate-500">Môi trường</dt>

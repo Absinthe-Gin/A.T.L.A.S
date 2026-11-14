@@ -8,14 +8,14 @@ function source(value: string | undefined): ImportMetaEnv {
 
 describe('readEnv', () => {
   it('returns the API base URL', () => {
-    expect(readEnv(source('http://localhost:8000/api/v1'))).toEqual({
-      apiBaseUrl: 'http://localhost:8000/api/v1',
+    expect(readEnv(source('http://127.0.0.1:8710/api/v1'))).toEqual({
+      apiBaseUrl: 'http://127.0.0.1:8710/api/v1',
     })
   })
 
   it('removes trailing slashes and surrounding spaces', () => {
-    expect(readEnv(source('  http://localhost:8000/api/v1//  ')).apiBaseUrl).toBe(
-      'http://localhost:8000/api/v1',
+    expect(readEnv(source('  http://127.0.0.1:8710/api/v1//  ')).apiBaseUrl).toBe(
+      'http://127.0.0.1:8710/api/v1',
     )
   })
 

@@ -1,11 +1,11 @@
 # Kiến trúc Backend
 
-> Trạng thái: **Đã phê duyệt.** Phase 2 và Phase 3 đã triển khai; phần AI (Phase 4) chưa triển khai.
+> Trạng thái: **Đã phê duyệt và đã triển khai** (Phase 1–6). Tài liệu mô tả code hiện tại.
 
 ## 1. Công nghệ
 
 | Thành phần | Lựa chọn | Ghi chú |
-|---|---|---|
+| --- | --- | --- |
 | Ngôn ngữ | Python 3.14 | Phiên bản đang cài trên máy phát triển |
 | Web framework | FastAPI | |
 | Validation | Pydantic v2 | |
@@ -30,6 +30,7 @@ backend/
 │   ├── env.py
 │   └── versions/
 ├── app/
+│   ├── __main__.py             # `python -m app`: chạy server theo Settings
 │   ├── main.py                 # create_app(): lắp ráp ứng dụng
 │   ├── bootstrap.py            # Composition root: đăng ký Tool, chọn Provider
 │   ├── api/
@@ -41,7 +42,7 @@ backend/
 │   │   ├── middleware.py       # Request ID + access log
 │   │   ├── exceptions.py       # Phân cấp AppError, ErrorDetail
 │   │   └── error_handlers.py   # ErrorResponse; chuyển exception thành error envelope
-│   ├── shared/                 # Shared kernel (tạo ở Phase 4)
+│   ├── shared/                 # Shared kernel
 │   │   └── tools.py            # Tool contract (xem ai-architecture.md)
 │   ├── infrastructure/
 │   │   └── database/
@@ -65,7 +66,7 @@ backend/
     └── modules/<module>/
 ```
 
-Thư mục module chỉ được tạo khi module đó có code thực. Phase 2 chỉ tạo `health`. Phase 3 và 4 tạo `users`, `memory`, `ai`. Các module `finance`, `travel`, `food`, `dashboard` được tạo khi có yêu cầu triển khai.
+Thư mục module chỉ được tạo khi module đó có code thực. Hiện có `health`, `users`, `memory`, `ai`. Các module `finance`, `travel`, `food`, `dashboard` được tạo khi có yêu cầu triển khai.
 
 ## 3. Cấu trúc bên trong một module
 
@@ -104,7 +105,7 @@ flowchart TD
 ```
 
 | Tầng | Được phép | Không được phép |
-|---|---|---|
+| --- | --- | --- |
 | Router | Khai báo endpoint, nhận schema, gọi service, trả response schema | Truy vấn DB, chứa quy tắc nghiệp vụ, bắt exception để tự tạo response lỗi |
 | Schema | Validate, serialize | Truy cập DB, gọi service |
 | Service | Quy tắc nghiệp vụ, điều phối repository và provider, quản lý transaction | Import `fastapi`, đọc `Request`, trả `Response` |
@@ -154,30 +155,35 @@ Không dùng event bus. Nếu sau này cần phản ứng bất đồng bộ gi�
 Một class `Settings` duy nhất trong `core/config.py`. Truy cập qua hàm `get_settings()` có cache.
 
 | Biến | Ý nghĩa | Mặc định Development |
-|---|---|---|
+| --- | --- | --- |
 | `APP_ENV` | `development` / `testing` / `production` | `development` |
+| `API_HOST` | Địa chỉ lắng nghe của server | `127.0.0.1` |
+| `API_PORT` | Cổng lắng nghe của server | `8710` |
 | `DATABASE_URL` | Chuỗi kết nối SQLAlchemy | `sqlite+aiosqlite:///./data/app.db` |
-| `CORS_ALLOWED_ORIGINS` | Danh sách origin, phân tách bằng dấu phẩy | `http://localhost:5173` |
+| `CORS_ALLOWED_ORIGINS` | Danh sách origin, phân tách bằng dấu phẩy | `http://localhost:5710,http://127.0.0.1:5710` |
 | `LOG_LEVEL` | Mức log | `DEBUG` |
 | `LOG_FORMAT` | `console` / `json` | `console` |
 
-Các biến dưới đây thuộc hạ tầng AI và được thêm vào `Settings` ở Phase 4:
+Biến của hạ tầng AI:
 
 | Biến | Ý nghĩa | Mặc định Development |
-|---|---|---|
+| --- | --- | --- |
 | `LLM_PROVIDER` | `ollama` / `mock` | `ollama` |
 | `OLLAMA_BASE_URL` | Địa chỉ Ollama | `http://localhost:11434` |
-| `OLLAMA_MODEL` | Tên model | Chọn ở Phase 4 |
+| `OLLAMA_MODEL` | Tên model | Rỗng (chưa cấu hình) |
 | `LLM_TEMPERATURE` | Temperature | `0.2` |
 | `LLM_TIMEOUT_SECONDS` | Timeout mỗi lần gọi LLM | `60` |
 | `AI_MAX_TOOL_ITERATIONS` | Giới hạn vòng gọi Tool mỗi lượt | `5` |
 | `AI_TOOL_TIMEOUT_SECONDS` | Timeout mỗi lần thực thi Tool | `15` |
+| `AI_CONTEXT_MAX_MESSAGES` | Số tin nhắn cũ gửi cho model | `20` |
+| `AI_MEMORY_LIMIT` | Số Memory tối đa đưa vào ngữ cảnh | `5` |
 
 Quy tắc:
 
 - Không có giá trị môi trường nào nằm rải rác trong code. Mọi nơi đọc từ `Settings`.
 - `production` yêu cầu `CORS_ALLOWED_ORIGINS` tường minh (không rỗng, không chứa `*`); `Settings` từ chối khởi động nếu vi phạm.
-- Địa chỉ và cổng lắng nghe là tham số của uvicorn (`--host`, `--port`), mặc định `127.0.0.1:8000`.
+- `uv run python -m app` (`app/__main__.py`) khởi động uvicorn tại `API_HOST:API_PORT`. Chế độ tự nạp lại code chỉ bật khi `APP_ENV=development`.
+- Dự án dùng cổng 8710 (Backend) và 5710 (Frontend) thay cho 8000 và 5173 để không trùng với dự án khác trên cùng máy.
 - Môi trường `testing` do `tests/conftest.py` thiết lập: mỗi test có một database SQLite riêng, tạo bằng migration thật. Test không đọc file `.env` của người phát triển.
 - File database nằm trong `backend/data/`, thư mục này thuộc `.gitignore`.
 
@@ -225,7 +231,7 @@ Mọi lỗi trả cùng một cấu trúc:
 
 `GET /api/v1/health` trả trạng thái ứng dụng và kết quả kiểm tra kết nối database. Database lỗi: HTTP 503 với `status = degraded`.
 
-Từ Phase 4, trạng thái Ollama được báo ở trường riêng và **không** làm health check thất bại.
+Trạng thái LLM được báo ở `checks.llm` (`ok` / `unavailable`) và **không** làm health check thất bại.
 
 ## 10. Xử lý lỗi
 
@@ -247,7 +253,7 @@ classDiagram
 ```
 
 | Loại lỗi | Lớp | HTTP | Mức log |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Dữ liệu request không hợp lệ | `RequestValidationError` của FastAPI, `ValidationFailedError` | 422 | INFO |
 | Không tìm thấy tài nguyên | `NotFoundError` | 404 | INFO |
 | Xung đột trạng thái | `ConflictError` | 409 | INFO |

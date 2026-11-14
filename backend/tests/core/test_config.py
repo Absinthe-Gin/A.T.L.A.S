@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import AppEnvironment, LogFormat, Settings
+from app.core.config import AppEnvironment, LLMProviderName, LogFormat, Settings
 from app.main import create_app
 
 
@@ -12,14 +12,23 @@ def _settings(**values: object) -> Settings:
 
 
 def test_defaults_target_local_development(monkeypatch: pytest.MonkeyPatch) -> None:
-    for name in ("APP_ENV", "DATABASE_URL", "CORS_ALLOWED_ORIGINS", "LOG_LEVEL", "LOG_FORMAT"):
+    for name in (
+        "APP_ENV",
+        "API_HOST",
+        "API_PORT",
+        "DATABASE_URL",
+        "CORS_ALLOWED_ORIGINS",
+        "LOG_LEVEL",
+        "LOG_FORMAT",
+    ):
         monkeypatch.delenv(name, raising=False)
 
     settings = _settings()
 
     assert settings.app_env is AppEnvironment.DEVELOPMENT
     assert settings.database_url.startswith("sqlite+aiosqlite:///")
-    assert settings.cors_origins == ["http://localhost:5173"]
+    assert settings.cors_origins == ["http://localhost:5710", "http://127.0.0.1:5710"]
+    assert (settings.api_host, settings.api_port) == ("127.0.0.1", 8710)
     assert settings.log_format is LogFormat.CONSOLE
 
 
@@ -87,3 +96,47 @@ def test_api_docs_are_disabled_in_production(tmp_path: Path) -> None:
     assert create_app(production).docs_url is None
     assert create_app(production).openapi_url is None
     assert create_app(development).docs_url == "/docs"
+
+
+def test_ai_defaults_allow_starting_without_a_configured_model() -> None:
+    settings = _settings()
+
+    assert settings.llm_provider is LLMProviderName.OLLAMA
+    assert settings.ollama_model == ""
+    assert settings.ollama_base_url == "http://localhost:11434"
+    assert settings.ai_max_tool_iterations == 5
+
+
+def test_ai_settings_are_read_from_environment_variables(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LLM_PROVIDER", "mock")
+    monkeypatch.setenv("OLLAMA_MODEL", "some-model")
+    monkeypatch.setenv("LLM_TIMEOUT_SECONDS", "12.5")
+    monkeypatch.setenv("AI_MAX_TOOL_ITERATIONS", "2")
+
+    settings = _settings()
+
+    assert settings.llm_provider is LLMProviderName.MOCK
+    assert settings.ollama_model == "some-model"
+    assert settings.llm_timeout_seconds == 12.5
+    assert settings.ai_max_tool_iterations == 2
+
+
+@pytest.mark.parametrize(
+    ("name", "value"),
+    [
+        ("llm_provider", "openai"),
+        ("api_port", 0),
+        ("api_port", 70000),
+        ("llm_temperature", -0.1),
+        ("llm_temperature", 2.1),
+        ("llm_timeout_seconds", 0),
+        ("ai_max_tool_iterations", 0),
+        ("ai_max_tool_iterations", 21),
+        ("ai_tool_timeout_seconds", -1),
+        ("ai_context_max_messages", -1),
+        ("ai_memory_limit", 51),
+    ],
+)
+def test_out_of_range_settings_are_rejected(name: str, value: object) -> None:
+    with pytest.raises(ValidationError):
+        _settings(**{name: value})

@@ -14,7 +14,7 @@ const healthy: HealthResponse = {
   status: 'ok',
   environment: 'development',
   version: '0.1.0',
-  checks: { database: 'ok' },
+  checks: { database: 'ok', llm: { status: 'ok', provider: 'ollama' } },
 }
 
 describe('SystemStatusCard', () => {
@@ -37,6 +37,7 @@ describe('SystemStatusCard', () => {
 
     expect(await screen.findByText('Hoạt động')).toBeInTheDocument()
     expect(screen.getByText('Kết nối tốt')).toBeInTheDocument()
+    expect(screen.getByText('Sẵn sàng')).toBeInTheDocument()
     expect(screen.getByText('development')).toBeInTheDocument()
     expect(screen.getByText('0.1.0')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
@@ -46,13 +47,26 @@ describe('SystemStatusCard', () => {
     vi.mocked(getHealth).mockResolvedValue({
       ...healthy,
       status: 'degraded',
-      checks: { database: 'error' },
+      checks: { ...healthy.checks, database: 'error' },
     })
 
     render(<SystemStatusCard />)
 
     expect(await screen.findByText('Suy giảm')).toBeInTheDocument()
     expect(screen.getByText('Lỗi kết nối')).toBeInTheDocument()
+  })
+
+  it('shows a warning when the LLM is not available', async () => {
+    vi.mocked(getHealth).mockResolvedValue({
+      ...healthy,
+      checks: { database: 'ok', llm: { status: 'unavailable', provider: 'ollama' } },
+    })
+
+    render(<SystemStatusCard />)
+
+    expect(await screen.findByText('Chưa sẵn sàng')).toBeInTheDocument()
+    expect(screen.getByText('AI (ollama)')).toBeInTheDocument()
+    expect(screen.getByText('Hoạt động')).toBeInTheDocument()
   })
 
   it('shows the error message and request id when the request fails', async () => {

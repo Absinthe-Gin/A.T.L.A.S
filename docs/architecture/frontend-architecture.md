@@ -1,11 +1,11 @@
 # Kiến trúc Frontend
 
-> Trạng thái: **Đã phê duyệt.** Phase 2 và Phase 3 đã triển khai; phần AI (Phase 4) chưa triển khai.
+> Trạng thái: **Đã phê duyệt và đã triển khai** (Phase 1–6). Tài liệu mô tả code hiện tại.
 
 ## 1. Công nghệ
 
 | Thành phần | Lựa chọn | Ghi chú |
-|---|---|---|
+| --- | --- | --- |
 | Framework | React + TypeScript (strict) | |
 | Build tool | Vite | |
 | CSS | Tailwind CSS | |
@@ -87,7 +87,7 @@ flowchart TD
 ```
 
 | Thành phần | Trách nhiệm | Không được làm |
-|---|---|---|
+| --- | --- | --- |
 | `app` | Lắp ráp ứng dụng, route, layout | Chứa logic nghiệp vụ |
 | `pages` | Ghép feature thành màn hình theo route | Gọi API trực tiếp, chứa logic xử lý dữ liệu |
 | `features` | Logic, state và UI của một nghiệp vụ | Import nội bộ của feature khác |
@@ -141,7 +141,7 @@ Quy tắc:
 `ApiError` có các trường:
 
 | Trường | Nguồn |
-|---|---|
+| --- | --- |
 | `kind` | `validation` / `not_found` / `conflict` / `business` / `client` / `external` / `server` / `network` / `timeout` / `unknown` |
 | `status` | HTTP status, `null` nếu lỗi mạng |
 | `code` | `error.code` từ error envelope của Backend |
@@ -167,7 +167,7 @@ Lỗi được báo qua một hàm `reportError` duy nhất. Hàm này hiện gh
 Route dự kiến:
 
 | Route | Trang |
-|---|---|
+| --- | --- |
 | `/` | Dashboard |
 | `/chat` | Chat |
 | `/finance` | Finance |
@@ -178,7 +178,7 @@ Route dự kiến:
 ## 7. Quản lý state
 
 | Loại state | Ví dụ | Vị trí |
-|---|---|---|
+| --- | --- | --- |
 | Server state | Danh sách giao dịch, hội thoại | Feature hook; không sao chép vào global store |
 | UI state cục bộ | Modal đang mở, giá trị ô nhập | `useState` trong component |
 | State theo URL | Bộ lọc, trang hiện tại | Search params của React Router |
@@ -205,15 +205,16 @@ Việc sinh kiểu tự động từ OpenAPI sẽ được đánh giá khi số 
 ## 10. Biến môi trường
 
 | Biến | Ý nghĩa | Mẫu |
-|---|---|---|
-| `VITE_API_BASE_URL` | Địa chỉ gốc của API | `http://localhost:8000/api/v1` |
+| --- | --- | --- |
+| `VITE_API_BASE_URL` | Địa chỉ gốc của API | `http://127.0.0.1:8710/api/v1` |
+| `VITE_DEV_SERVER_PORT` | Cổng của dev server | `5710` |
 
 `config/env.ts` kiểm tra biến bắt buộc khi khởi động và báo lỗi rõ ràng nếu thiếu. Biến `VITE_*` được nhúng vào bundle, nên không đặt secret ở Frontend.
 
 ## 11. Kiểm thử
 
 | Loại | Đối tượng | Công cụ |
-|---|---|---|
+| --- | --- | --- |
 | Component | Render, tương tác, bốn trạng thái dữ liệu | React Testing Library |
 | Hook | Chuyển trạng thái, xử lý lỗi | `renderHook` |
 | API service | Chuẩn hóa lỗi thành `ApiError`, ánh xạ dữ liệu | Vitest, mock adapter của Axios |

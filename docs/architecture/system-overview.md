@@ -1,6 +1,6 @@
 # Tổng quan hệ thống
 
-> Trạng thái: **Đã phê duyệt.** Phase 2 và Phase 3 đã triển khai; phần AI (Phase 4) chưa triển khai.
+> Trạng thái: **Đã phê duyệt và đã triển khai** (Phase 1–6). Tài liệu mô tả code hiện tại.
 
 ## 1. Mục đích
 
@@ -9,7 +9,7 @@ AI Personal Assistant là ứng dụng trợ lý cá nhân chạy cục bộ, k�
 Tài liệu này là điểm vào của bộ tài liệu kiến trúc:
 
 | Tài liệu | Nội dung |
-|---|---|
+| --- | --- |
 | [backend-architecture.md](backend-architecture.md) | Phân tầng, module, lỗi, logging, cấu hình Backend |
 | [frontend-architecture.md](frontend-architecture.md) | Cấu trúc và quy ước Frontend |
 | [ai-architecture.md](ai-architecture.md) | Orchestrator, Tool, LLM Provider |
@@ -73,7 +73,7 @@ Nguyên tắc cốt lõi:
 ## 4. Các module và quan hệ phụ thuộc
 
 | Module | Trách nhiệm | Sở hữu dữ liệu |
-|---|---|---|
+| --- | --- | --- |
 | `users` | Danh tính người dùng hiện tại | `users` |
 | `ai` | Orchestrator, Intent, Tool Registry, Tool Execution, LLM Provider | Không có bảng riêng |
 | `memory` | Conversation Memory, Long-term Memory, Memory Retrieval | `conversations`, `messages`, `memories` |
@@ -165,7 +165,7 @@ A.T.L.A.S/
 ## 7. Thuộc tính chất lượng và cách đáp ứng
 
 | Thuộc tính | Cơ chế |
-|---|---|
+| --- | --- |
 | Maintainability | Module theo nghiệp vụ; tầng rõ ràng; quy ước đặt tên thống nhất; lint + type check |
 | Debuggability | Log có cấu trúc kèm `request_id`; phân cấp exception theo loại lỗi; error envelope thống nhất; log riêng cho từng lượt AI |
 | Extensibility | Thêm module = thêm thư mục + đăng ký router/Tool tại composition root; Provider Adapter cho LLM và dịch vụ ngoài |
@@ -177,7 +177,7 @@ A.T.L.A.S/
 Các ADR nằm trong [docs/decisions/ADR/](../decisions/ADR/).
 
 | ADR | Quyết định đề xuất | Lý do chính |
-|---|---|---|
+| --- | --- | --- |
 | 0001 | Modular Monolith, module theo nghiệp vụ, ranh giới qua `public.py` | Yêu cầu của CLAUDE.md; đủ cho một người dùng; tách được về sau |
 | 0002 | SQLAlchemy 2.0 **async** (`aiosqlite`, sau này `asyncpg`) | Luồng Chat là I/O dài (gọi LLM); session đồng bộ sẽ chặn event loop |
 | 0003 | Khóa chính UUID sinh ở tầng ứng dụng | ID xuất hiện trong URL, log và tham số Tool; không đoán được; dễ chuyển sang PostgreSQL |

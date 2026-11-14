@@ -9,7 +9,7 @@ const body: HealthResponse = {
   status: 'degraded',
   environment: 'testing',
   version: '0.1.0',
-  checks: { database: 'error' },
+  checks: { database: 'error', llm: { status: 'ok', provider: 'mock' } },
 }
 
 describe('getHealth', () => {
