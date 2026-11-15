@@ -178,6 +178,23 @@ Biến của hạ tầng AI:
 | `AI_CONTEXT_MAX_MESSAGES` | Số tin nhắn cũ gửi cho model | `20` |
 | `AI_MEMORY_LIMIT` | Số Memory tối đa đưa vào ngữ cảnh | `5` |
 
+Biến của dịch vụ dữ liệu ngoài (module Travel). Adapter nằm trong `app/infrastructure/` (`geo.py`, `weather.py`, `flights.py`), tạo một lần trong `lifespan` và lưu ở `app.state.external`:
+
+| Biến | Ý nghĩa | Mặc định Development |
+| --- | --- | --- |
+| `EXTERNAL_TIMEOUT_SECONDS` | Timeout mỗi lần gọi dịch vụ ngoài | `10` |
+| `OSM_CONTACT` | Liên hệ gửi kèm User-Agent tới OpenStreetMap (chính sách Nominatim khuyến nghị) | Rỗng |
+| `NOMINATIM_BASE_URL` | Tìm địa điểm | `https://nominatim.openstreetmap.org` |
+| `OPEN_METEO_BASE_URL` | Thời tiết | `https://api.open-meteo.com` |
+| `OSRM_BASE_URL` | Quãng đường lái xe | `https://router.project-osrm.org` |
+| `SERPAPI_BASE_URL` | Giá vé máy bay (Google Flights) | `https://serpapi.com` |
+| `SERPAPI_API_KEY` | Khóa SerpApi. Rỗng: không lấy giá vé, chỉ đưa liên kết Google Flights | Rỗng |
+| `PHOTON_BASE_URL` | Nguồn thứ hai (dữ liệu OpenStreetMap, máy chủ khác): tìm quán trước tiên, và tìm địa điểm khi Nominatim lỗi | `https://photon.komoot.io` |
+| `OVERPASS_BASE_URL` | Tìm quán theo món (module Ẩm thực) | `https://overpass-api.de/api/interpreter` |
+| `OVERPASS_TIMEOUT_SECONDS` | Timeout cho truy vấn Overpass (chạy trên server, cần lâu hơn) | `30` |
+
+Mọi lỗi của dịch vụ ngoài thành `ExternalServiceError` (502), `ExternalServiceTimeoutError` (504) hoặc `ExternalServiceUnavailableError` (503). Exception gốc không được nối (`from None`) và log của `httpx` được nâng lên `WARNING`, vì URL có thể chứa API key. Tìm địa điểm và tìm quán đều có nguồn dự phòng (`infrastructure/fallback.py`): địa điểm thử Nominatim rồi Photon; quán thử Photon rồi Overpass. Chỉ lỗi của dịch vụ (`ExternalServiceError`) mới chuyển sang nguồn kế tiếp; kết quả rỗng được trả nguyên. Kết quả được cache trong bộ nhớ: địa điểm 24 giờ, tuyến đường 6 giờ, thời tiết 10 phút, chuyến bay 1 giờ. Nominatim bị giới hạn 1 request mỗi giây.
+
 Quy tắc:
 
 - Không có giá trị môi trường nào nằm rải rác trong code. Mọi nơi đọc từ `Settings`.

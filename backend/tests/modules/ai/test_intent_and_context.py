@@ -7,7 +7,7 @@ import pytest
 from app.core.exceptions import ExternalServiceUnavailableError
 from app.modules.ai.context import build_context
 from app.modules.ai.intent import INTENT_GENERAL, INTENT_UNKNOWN, LLMIntentClassifier
-from app.modules.ai.prompts import SYSTEM_PROMPT
+from app.modules.ai.prompts import build_system_prompt
 from app.modules.ai.providers.base import LLMRole
 from app.modules.ai.providers.mock import MockLLMProvider
 from app.modules.memory.models import MemoryCategory
@@ -124,7 +124,7 @@ def test_context_is_system_prompt_then_history_then_the_new_message() -> None:
     messages = build_context(history=history, memories=[], user_text="Hôm nay thế nào?")
 
     assert [(m.role, m.content) for m in messages] == [
-        (LLMRole.SYSTEM, SYSTEM_PROMPT),
+        (LLMRole.SYSTEM, build_system_prompt([])),
         (LLMRole.USER, "Chào"),
         (LLMRole.ASSISTANT, "Chào bạn"),
         (LLMRole.USER, "Hôm nay thế nào?"),
@@ -145,7 +145,7 @@ def test_context_adds_memories_with_their_origin_to_the_system_prompt() -> None:
 
     system = build_context(history=[], memories=memories, user_text="Ăn gì?")[0].content
 
-    assert system.startswith(SYSTEM_PROMPT)
+    assert system.startswith(build_system_prompt([]))
     assert "- Thích ăn phở (người dùng xác nhận)" in system
     assert "- Có thể đang ăn kiêng (AI suy luận, chưa xác nhận)" in system
 

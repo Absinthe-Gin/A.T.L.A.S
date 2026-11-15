@@ -54,6 +54,32 @@ def test_values_are_read_from_env_file(tmp_path: Path, monkeypatch: pytest.Monke
     assert settings.log_level == "ERROR"
 
 
+def test_external_services_default_to_free_public_endpoints_without_a_key() -> None:
+    settings = _settings()
+
+    assert settings.nominatim_base_url == "https://nominatim.openstreetmap.org"
+    assert settings.open_meteo_base_url == "https://api.open-meteo.com"
+    assert settings.osrm_base_url == "https://router.project-osrm.org"
+    assert settings.serpapi_api_key.get_secret_value() == ""
+    assert settings.external_timeout_seconds > 0
+
+
+def test_the_serpapi_key_is_never_shown_in_settings_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SERPAPI_API_KEY", "s3cret")
+
+    settings = _settings()
+
+    assert settings.serpapi_api_key.get_secret_value() == "s3cret"
+    assert "s3cret" not in repr(settings)
+
+
+def test_external_timeout_must_be_positive() -> None:
+    with pytest.raises(ValidationError):
+        _settings(external_timeout_seconds=0)
+
+
 def test_cors_origins_are_split_and_trimmed() -> None:
     settings = _settings(cors_allowed_origins=" http://a.test , http://b.test ,, ")
 
@@ -140,3 +166,14 @@ def test_ai_settings_are_read_from_environment_variables(monkeypatch: pytest.Mon
 def test_out_of_range_settings_are_rejected(name: str, value: object) -> None:
     with pytest.raises(ValidationError):
         _settings(**{name: value})
+
+
+def test_overpass_defaults_to_the_public_endpoint_with_a_longer_timeout() -> None:
+    settings = _settings()
+
+    assert settings.overpass_base_url == "https://overpass-api.de/api/interpreter"
+    assert settings.overpass_timeout_seconds == 30
+
+
+def test_photon_is_the_second_provider_for_place_and_restaurant_search() -> None:
+    assert _settings().photon_base_url == "https://photon.komoot.io"

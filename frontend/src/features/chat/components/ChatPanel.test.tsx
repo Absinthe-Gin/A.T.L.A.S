@@ -55,6 +55,7 @@ describe('ChatPanel', () => {
       reply: 'Đã ghi nhận.',
       intent: 'finance',
       tool_calls: [{ name: 'finance_create_transaction', status: 'success' }],
+      pending_actions: [],
     })
     const user = userEvent.setup()
     renderPanel()
@@ -78,6 +79,7 @@ describe('ChatPanel', () => {
       reply: 'Chào bạn!',
       intent: 'general',
       tool_calls: [],
+      pending_actions: [],
     })
     const user = userEvent.setup()
     renderPanel()
@@ -131,6 +133,7 @@ describe('ChatPanel', () => {
         reply: 'Đã nhận.',
         intent: 'general',
         tool_calls: [],
+      pending_actions: [],
       })
     const user = userEvent.setup()
     renderPanel()
@@ -164,6 +167,7 @@ describe('ChatPanel', () => {
       reply: 'Chào bạn!',
       intent: 'general',
       tool_calls: [],
+      pending_actions: [],
     })
     const user = userEvent.setup()
     renderPanel()

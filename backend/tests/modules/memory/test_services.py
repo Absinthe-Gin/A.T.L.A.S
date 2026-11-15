@@ -16,6 +16,7 @@ from app.modules.memory.service import ConversationService, MemoryService
 from app.modules.users.models import DEFAULT_USER_ID, User
 from app.modules.users.repository import UserRepository
 from app.modules.users.service import DefaultUserMissingError, UserService
+from tests.database import remove_default_user
 
 
 @pytest.fixture
@@ -248,8 +249,7 @@ async def test_current_user_is_the_default_local_user(session: AsyncSession) -> 
 
 
 async def test_missing_default_user_is_reported_clearly(session: AsyncSession) -> None:
-    await session.delete(await session.get(User, DEFAULT_USER_ID))
-    await session.commit()
+    await remove_default_user(session)
 
     with pytest.raises(DefaultUserMissingError, match="alembic upgrade head"):
         await UserService(UserRepository(session)).get_current_user()

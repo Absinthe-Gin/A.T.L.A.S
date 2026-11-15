@@ -2,16 +2,19 @@ import asyncio
 import logging
 import time
 from collections.abc import Collection
+from typing import Any
 
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from app.core.exceptions import AppError
 from app.modules.ai.execution_log import log_tool_execution
 from app.modules.ai.providers.base import ToolCall
 from app.modules.ai.tools.registry import ToolRegistry
-from app.shared.tools import ToolContext, ToolResult, ToolStatus
+from app.shared.tools import Tool, ToolContext, ToolEffect, ToolResult, ToolStatus
 
 logger = logging.getLogger(__name__)
+
+AnyTool = Tool[Any, Any]
 
 
 def _describe(error: ValidationError) -> str:
@@ -61,6 +64,72 @@ class ToolExecutor:
         except ValidationError as error:
             return failure("invalid_tool_input", _describe(error))
 
+        if tool.spec.effect is ToolEffect.WRITE:
+            # The model may only propose a change; the user decides.
+            return await self._propose(tool, tool_input, context)
+        return await self._invoke(tool, tool_input, context)
+
+    async def execute_confirmed(
+        self, tool_name: str, arguments: dict[str, Any], context: ToolContext
+    ) -> ToolResult:
+        """Run a write request the user has confirmed. Arguments are validated again."""
+        started_at = time.perf_counter()
+        tool = self._registry.get(tool_name)
+        if tool is None:
+            result = ToolResult(
+                tool_name=tool_name,
+                status=ToolStatus.ERROR,
+                error_code="tool_not_found",
+                error_message=f"Tool '{tool_name}' is not available.",
+            )
+        else:
+            try:
+                tool_input = tool.spec.input_model.model_validate(arguments)
+            except ValidationError as error:
+                result = ToolResult(
+                    tool_name=tool_name,
+                    status=ToolStatus.ERROR,
+                    error_code="invalid_tool_input",
+                    error_message=_describe(error),
+                )
+            else:
+                result = await self._invoke(tool, tool_input, context)
+        result.duration_ms = round((time.perf_counter() - started_at) * 1000, 2)
+        log_tool_execution(
+            conversation_id=context.conversation_id, arguments=arguments, result=result
+        )
+        return result
+
+    async def _propose(
+        self, tool: AnyTool, tool_input: BaseModel, context: ToolContext
+    ) -> ToolResult:
+        name = tool.spec.name
+        try:
+            async with asyncio.timeout(self._timeout_seconds):
+                summary = await tool.preview(context, tool_input)
+        except TimeoutError:
+            return _failure(
+                name, "tool_timeout", f"Tool did not finish within {self._timeout_seconds} seconds."
+            )
+        except AppError as error:
+            return _failure(name, error.code, error.message)
+        except Exception:
+            logger.exception("Tool preview raised an unexpected error", extra={"tool_name": name})
+            return _failure(name, "tool_execution_failed", "The tool failed unexpectedly.")
+        return ToolResult(
+            tool_name=name,
+            status=ToolStatus.PENDING,
+            output={"summary": summary, "arguments": tool_input.model_dump(mode="json")},
+        )
+
+    async def _invoke(
+        self, tool: AnyTool, tool_input: BaseModel, context: ToolContext
+    ) -> ToolResult:
+        name = tool.spec.name
+
+        def failure(code: str, message: str) -> ToolResult:
+            return _failure(name, code, message)
+
         try:
             async with asyncio.timeout(self._timeout_seconds):
                 raw_output = await tool.execute(context, tool_input)
@@ -72,16 +141,22 @@ class ToolExecutor:
             # An expected business or validation failure: safe to show to the model.
             return failure(error.code, error.message)
         except Exception:
-            logger.exception("Tool raised an unexpected error", extra={"tool_name": call.name})
+            logger.exception("Tool raised an unexpected error", extra={"tool_name": name})
             return failure("tool_execution_failed", "The tool failed unexpectedly.")
 
         try:
             output = tool.spec.output_model.model_validate(raw_output, from_attributes=True)
         except ValidationError:
             # The tool broke its own contract: a programming error.
-            logger.exception("Tool returned an invalid output", extra={"tool_name": call.name})
+            logger.exception("Tool returned an invalid output", extra={"tool_name": name})
             return failure("invalid_tool_output", "The tool returned an invalid result.")
 
         return ToolResult(
-            tool_name=call.name, status=ToolStatus.SUCCESS, output=output.model_dump(mode="json")
+            tool_name=name, status=ToolStatus.SUCCESS, output=output.model_dump(mode="json")
         )
+
+
+def _failure(tool_name: str, code: str, message: str) -> ToolResult:
+    return ToolResult(
+        tool_name=tool_name, status=ToolStatus.ERROR, error_code=code, error_message=message
+    )

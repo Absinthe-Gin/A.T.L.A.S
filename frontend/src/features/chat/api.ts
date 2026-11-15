@@ -1,6 +1,6 @@
 import { apiClient } from '@/services/api/client'
 
-import type { ChatRequest, ChatResponse } from './types'
+import type { ChatRequest, ChatResponse, PendingAction } from './types'
 
 /**
  * A reply can take a while on a local model. Longer than the backend's
@@ -16,5 +16,16 @@ export async function sendChatMessage(
     signal,
     timeout: CHAT_TIMEOUT_MS,
   })
+  return response.data
+}
+
+/** Carry out a change the assistant proposed. The returned status says whether it succeeded. */
+export async function confirmAction(id: string): Promise<PendingAction> {
+  const response = await apiClient.post<PendingAction>(`/chat/actions/${id}/confirm`)
+  return response.data
+}
+
+export async function cancelAction(id: string): Promise<PendingAction> {
+  const response = await apiClient.post<PendingAction>(`/chat/actions/${id}/cancel`)
   return response.data
 }

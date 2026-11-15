@@ -36,7 +36,7 @@ from app.modules.memory.repository import (
 from app.modules.memory.service import ConversationService, MemoryService
 from app.modules.users.models import DEFAULT_USER_ID, User
 from app.shared.tools import Tool, ToolStatus
-from tests.ai_support import BusinessFailureTool, EchoTool, build_runtime, tool_call
+from tests.ai_support import BusinessFailureTool, EchoTool, build_actions, build_runtime, tool_call
 
 DEMO_INTENT = '{"intent": "demo"}'
 
@@ -57,6 +57,7 @@ def _orchestrator(
             session, ConversationRepository(session), MessageRepository(session)
         ),
         memories=MemoryService(MemoryRepository(session)),
+        actions=build_actions(session, runtime),
         limits=runtime.limits,
     )
 

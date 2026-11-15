@@ -145,7 +145,7 @@ AI Personal Assistant
     └── Health Check (module kỹ thuật, không chứa nghiệp vụ)
 ```
 
-Trạng thái triển khai: `health`, `users`, `memory`, `ai` đã có code. `finance`, `travel`, `food`, `dashboard` chưa có; chỉ tạo thư mục module khi có yêu cầu triển khai.
+Trạng thái triển khai: `health`, `users`, `memory`, `ai`, `finance`, `travel`, `food` đã có code. `dashboard` chưa có; chỉ tạo thư mục module khi có yêu cầu triển khai.
 
 Quy định:
 
@@ -1138,6 +1138,7 @@ Quy tắc phụ thuộc (được kiểm tra bởi `tests/architecture/test_modu
 - `app.core`, `app.shared`, `app.infrastructure` không import `app.modules`. Ngoại lệ duy nhất: `infrastructure/database/models.py` import `models` của mọi module.
 - `service.py` không import `fastapi` hoặc `starlette`.
 - Hướng phụ thuộc hiện tại: `health` → `ai`; `ai` → `memory`, `users`. Không tạo chiều ngược lại.
+- Adapter dịch vụ dữ liệu ngoài (bản đồ, thời tiết, chuyến bay) nằm trong `app/infrastructure/` và được tạo một lần trong `lifespan` (`app.state.external`). Module nghiệp vụ nhận chúng qua `ExternalServices`, không tự tạo HTTP client.
 
 Khi một file vượt quá khoảng 300 dòng hoặc chứa nhiều nhóm nghiệp vụ, tách thành package cùng tên.
 
@@ -1202,7 +1203,7 @@ Migration:
 - Mỗi Tool có `input_model` và `output_model` là Pydantic model. JSON Schema gửi cho model được sinh từ `input_model`; không viết schema bằng tay.
 - `user_id` và `conversation_id` luôn lấy từ `ToolContext`. Không bao giờ nhận chúng từ tham số do model tạo.
 - Tool không chứa quy tắc nghiệp vụ. Tool gọi service của chính module đó.
-- Tool làm thay đổi dữ liệu khai báo `effect=ToolEffect.WRITE`.
+- Tool làm thay đổi dữ liệu khai báo `effect=ToolEffect.WRITE` và cài `preview()`. Tool ghi không bao giờ chạy trực tiếp từ lời model: nó thành đề xuất trong `ai_pending_actions` và chỉ chạy khi người dùng xác nhận qua `POST /chat/actions/{id}/confirm`.
 - `ToolExecutor` biến mọi thất bại của Tool thành `ToolResult`. Tool ném `AppError` cho lỗi nghiệp vụ; không tự bắt exception để trả chuỗi lỗi.
 - Mọi lời gọi model đi qua interface `LLMProvider`. Chỉ code trong `modules/ai/providers/` được gửi request tới dịch vụ LLM.
 - Nhà cung cấp mới: thêm một adapter trong `modules/ai/providers/` và một nhánh trong `factory.py`.

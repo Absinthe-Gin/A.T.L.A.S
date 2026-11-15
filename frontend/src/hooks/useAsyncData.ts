@@ -7,7 +7,12 @@ export type AsyncState<T> =
   | { status: 'success'; data: T; error: null }
   | { status: 'error'; data: null; error: ApiError }
 
-export type AsyncData<T> = AsyncState<T> & { reload: () => void }
+export type AsyncData<T> = AsyncState<T> & {
+  /** Request again and show the loading state. */
+  reload: () => void
+  /** Request again in the background, keeping the current data on screen until the answer arrives. */
+  refresh: () => void
+}
 
 const LOADING = { status: 'loading', data: null, error: null } as const
 
@@ -46,5 +51,9 @@ export function useAsyncData<T>(fetcher: (signal: AbortSignal) => Promise<T>): A
     setAttempt((current) => current + 1)
   }, [])
 
-  return { ...state, reload }
+  const refresh = useCallback(() => {
+    setAttempt((current) => current + 1)
+  }, [])
+
+  return { ...state, reload, refresh }
 }

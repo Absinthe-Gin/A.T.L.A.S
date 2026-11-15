@@ -93,10 +93,11 @@ def configure_logging(level: str, log_format: LogFormat) -> None:
     root.addHandler(handler)
     root.setLevel(level)
 
-    # These libraries log every low-level operation at DEBUG, which hides
-    # application messages when LOG_LEVEL=DEBUG.
+    # These libraries log every low-level operation, which hides application
+    # messages. httpx also logs each request URL at INFO, and a URL may carry an
+    # API key (SerpApi), so only warnings from them are kept.
     for name in _NOISY_LOGGERS:
-        logging.getLogger(name).setLevel(logging.INFO)
+        logging.getLogger(name).setLevel(logging.WARNING)
 
     # Route uvicorn's own messages through the application handler.
     for name in ("uvicorn", "uvicorn.error"):

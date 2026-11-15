@@ -13,7 +13,18 @@ from alembic.util.exc import CommandError
 from app.modules.users.models import DEFAULT_USER_ID
 from tests.database import alembic_config, upgrade_to_head
 
-EXPECTED_TABLES = {"users", "conversations", "messages", "memories"}
+EXPECTED_TABLES = {
+    "users",
+    "conversations",
+    "messages",
+    "memories",
+    "transaction_categories",
+    "transactions",
+    "budgets",
+    "ai_pending_actions",
+    "travel_plans",
+    "itinerary_items",
+}
 
 
 def _tables(database_path: Path) -> set[str]:

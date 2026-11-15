@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.core.config import AppEnvironment, LLMProviderName, Settings
 from app.main import create_app
 from tests.database import sqlite_url, upgrade_to_head
+from tests.travel_support import FakeExternal
 
 
 def build_test_settings(database_path: Path, **overrides: object) -> Settings:
@@ -55,8 +56,15 @@ def settings(database_path: Path) -> Settings:
 
 
 @pytest.fixture
-async def app(settings: Settings) -> AsyncIterator[FastAPI]:
+def external() -> FakeExternal:
+    """External data services (places, weather, roads, flights) answered in memory."""
+    return FakeExternal()
+
+
+@pytest.fixture
+async def app(settings: Settings, external: FakeExternal) -> AsyncIterator[FastAPI]:
     application = create_app(settings)
+    application.state.external = external.services
     async with application.router.lifespan_context(application):
         yield application
 

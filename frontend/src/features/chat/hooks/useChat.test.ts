@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '@/services/api/errors'
 
-import { sendChatMessage } from '../api'
+import { confirmAction, sendChatMessage } from '../api'
 import type { ChatResponse } from '../types'
 import { useChat } from './useChat'
 
@@ -16,6 +16,7 @@ function reply(overrides: Partial<ChatResponse> = {}): ChatResponse {
     reply: 'Chào bạn!',
     intent: 'general',
     tool_calls: [],
+    pending_actions: [],
     ...overrides,
   }
 }
@@ -154,5 +155,46 @@ describe('useChat', () => {
     unmount()
 
     expect(signal?.aborted).toBe(true)
+  })
+})
+
+describe('useChat proposals', () => {
+  beforeEach(() => {
+    vi.mocked(sendChatMessage).mockReset()
+    vi.mocked(confirmAction).mockReset()
+  })
+
+  it('keeps proposals with the reply and updates them once resolved', async () => {
+    const proposal = { id: 'a1', tool_name: 'x', summary: 'Ghi chi 50.000 ₫.', status: 'pending' as const, error_message: null }
+    vi.mocked(sendChatMessage).mockResolvedValue(reply({ pending_actions: [proposal] }))
+    vi.mocked(confirmAction).mockResolvedValue({ ...proposal, status: 'confirmed' })
+    const { result } = renderHook(() => useChat())
+    act(() => result.current.send('Ghi chi 50k'))
+    await waitFor(() => expect(result.current.messages).toHaveLength(2))
+
+    let error: unknown = 'unset'
+    await act(async () => {
+      error = await result.current.resolveAction('a1', 'confirm')
+    })
+
+    expect(error).toBeNull()
+    expect(result.current.messages[1]).toMatchObject({ pendingActions: [{ id: 'a1', status: 'confirmed' }] })
+  })
+
+  it('returns the error and leaves the proposal pending when resolving fails', async () => {
+    const proposal = { id: 'a1', tool_name: 'x', summary: 's', status: 'pending' as const, error_message: null }
+    vi.mocked(sendChatMessage).mockResolvedValue(reply({ pending_actions: [proposal] }))
+    vi.mocked(confirmAction).mockRejectedValue(new ApiError({ kind: 'network', message: 'Mất kết nối' }))
+    const { result } = renderHook(() => useChat())
+    act(() => result.current.send('Ghi'))
+    await waitFor(() => expect(result.current.messages).toHaveLength(2))
+
+    let error: ApiError | null = null
+    await act(async () => {
+      error = await result.current.resolveAction('a1', 'confirm')
+    })
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(result.current.messages[1]).toMatchObject({ pendingActions: [{ status: 'pending' }] })
   })
 })

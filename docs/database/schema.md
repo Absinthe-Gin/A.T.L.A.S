@@ -2,7 +2,7 @@
 
 Tài liệu này mô tả schema **đang tồn tại** trong database. Quy ước chung và thiết kế sơ bộ của các bảng chưa tạo nằm trong [database-architecture.md](../architecture/database-architecture.md).
 
-- Revision hiện tại: `d47fdc37c9e9` — `create users and memory tables`
+- Revision hiện tại: `5d1d9ce9ace0` — `create finance tables and pending actions`
 - Migration: `backend/alembic/versions/`
 
 ## Quy ước áp dụng cho mọi bảng
@@ -83,8 +83,103 @@ Index: `ix_memories_user_id_category (user_id, category)`.
 | --- | --- |
 | `conversations` | Mọi `messages` của hội thoại bị xóa theo |
 | `messages` | `memories.source_message_id` liên quan được đặt `NULL`; Memory được giữ lại |
-| `users` đang có `conversations` hoặc `memories` | Bị từ chối |
+| `users` đang có dữ liệu | Bị từ chối |
+| `conversations` | Mọi `ai_pending_actions` của hội thoại bị xóa theo |
+| `transaction_categories` đang được dùng | Bị từ chối |
+
+## `transaction_categories` — module `finance`
+
+| Cột | Kiểu | Null | Ghi chú |
+| --- | --- | --- | --- |
+| `id` | Uuid | Không | PK |
+| `user_id` | Uuid | Không | FK → `users.id`, `RESTRICT` |
+| `name` | String(60) | Không | |
+| `kind` | String(20) | Không | `income`, `expense` |
+| `created_at`, `updated_at` | DateTime | Không | |
+
+Unique `uq_transaction_categories_user_id_kind_name`. Dữ liệu khởi tạo: 8 danh mục chi, 3 danh mục thu cho người dùng mặc định.
+
+## `transactions` — module `finance`
+
+| Cột | Kiểu | Null | Ghi chú |
+| --- | --- | --- | --- |
+| `id` | Uuid | Không | PK |
+| `user_id` | Uuid | Không | FK → `users.id`, `RESTRICT` |
+| `category_id` | Uuid | Có | FK → `transaction_categories.id`, `RESTRICT`. Luôn trống với `adjustment` |
+| `kind` | String(20) | Không | `income`, `expense`, `adjustment` |
+| `amount` | BigInteger | Không | Đồng. Check `ck_transactions_amount_not_zero`. Chỉ `adjustment` được âm (kiểm tra ở service) |
+| `currency` | String(3) | Không | `VND` |
+| `occurred_on` | Date | Không | |
+| `note` | String(500) | Có | |
+| `created_at`, `updated_at` | DateTime | Không | |
+
+Index `ix_transactions_user_id_occurred_on`.
+
+## `budgets` — module `finance`
+
+| Cột | Kiểu | Null | Ghi chú |
+| --- | --- | --- | --- |
+| `id` | Uuid | Không | PK |
+| `user_id` | Uuid | Không | FK → `users.id`, `RESTRICT` |
+| `category_id` | Uuid | Có | FK → `transaction_categories.id`, `RESTRICT`. Trống: ngân sách tổng |
+| `month` | Date | Không | Luôn là ngày 1 của tháng |
+| `amount` | BigInteger | Không | Check `ck_budgets_amount_positive` |
+| `currency` | String(3) | Không | `VND` |
+| `created_at`, `updated_at` | DateTime | Không | |
+
+Index `ix_budgets_user_id_month`. Mỗi tháng chỉ một ngân sách cho mỗi danh mục (kể cả ngân sách tổng): kiểm tra ở service, vì SQLite coi các giá trị NULL là khác nhau trong ràng buộc unique.
+
+## `ai_pending_actions` — module `ai`
+
+Thay đổi do trợ lý đề xuất, chờ người dùng xác nhận.
+
+| Cột | Kiểu | Null | Ghi chú |
+| --- | --- | --- | --- |
+| `id` | Uuid | Không | PK |
+| `user_id` | Uuid | Không | FK → `users.id`, `RESTRICT` |
+| `conversation_id` | Uuid | Không | FK → `conversations.id`, `CASCADE` |
+| `tool_name` | String(100) | Không | |
+| `arguments` | JSON | Không | Tham số đã kiểm tra; được kiểm tra lại khi xác nhận |
+| `summary` | Text | Không | Câu mô tả hiển thị cho người dùng |
+| `status` | String(20) | Không | `pending`, `confirmed`, `cancelled`, `failed` |
+| `result` | JSON | Có | Kết quả khi `confirmed` |
+| `error_code`, `error_message` | String(100), Text | Có | Khi `failed` |
+| `resolved_at` | DateTime | Có | |
+| `created_at`, `updated_at` | DateTime | Không | |
+
+Index `ix_ai_pending_actions_user_id_status`.
+
+## `travel_plans` — module `travel`
+
+| Cột | Kiểu | Null | Ghi chú |
+| --- | --- | --- | --- |
+| `id` | Uuid | Không | PK |
+| `user_id` | Uuid | Không | FK → `users.id`, `RESTRICT` |
+| `title` | String(120) | Không | |
+| `destination_name` | String(200) | Có | Điểm đến: tên và tọa độ luôn có đủ cả ba hoặc không có |
+| `destination_lat`, `destination_lon` | Float | Có | Tọa độ WGS84 |
+| `start_date`, `end_date` | Date | Có | Check `ck_travel_plans_dates_in_order` |
+| `note` | Text | Có | |
+| `created_at`, `updated_at` | DateTime | Không | |
+
+Index `ix_travel_plans_user_id_start_date`.
+
+## `itinerary_items` — module `travel`
+
+| Cột | Kiểu | Null | Ghi chú |
+| --- | --- | --- | --- |
+| `id` | Uuid | Không | PK |
+| `plan_id` | Uuid | Không | FK → `travel_plans.id`, `CASCADE` (hoạt động là thành phần của kế hoạch) |
+| `day` | Date | Có | Phải nằm trong khoảng ngày của kế hoạch (kiểm tra ở service) |
+| `start_time` | Time | Có | |
+| `position` | Integer | Không | Thứ tự thêm, dùng khi trùng ngày và giờ |
+| `title` | String(200) | Không | |
+| `place_name`, `place_lat`, `place_lon` | String(200), Float, Float | Có | Địa điểm, quy ước như điểm đến |
+| `note` | Text | Có | |
+| `created_at`, `updated_at` | DateTime | Không | |
+
+Index `ix_itinerary_items_plan_id_day`. Xóa kế hoạch xóa luôn các hoạt động của nó.
 
 ## Bảng chưa tạo
 
-`transaction_categories`, `transactions`, `budgets`, `travel_plans`, `itinerary_items` được tạo khi module Finance và Travel được triển khai.
+Bảng của module Food và Dashboard được tạo khi các module đó được triển khai.

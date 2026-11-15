@@ -8,7 +8,7 @@ from enum import StrEnum
 from functools import lru_cache
 from typing import Literal, Self
 
-from pydantic import Field, model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -70,6 +70,22 @@ class Settings(BaseSettings):
     ai_context_max_messages: int = Field(default=20, ge=0, le=200)
     # How many long-term memories may be added to the context of one turn.
     ai_memory_limit: int = Field(default=5, ge=0, le=50)
+
+    # --- External data services (all free; only flight prices need a key) ---
+    external_timeout_seconds: float = Field(default=10.0, gt=0)
+    # Sent in the User-Agent, as the OpenStreetMap usage policies ask. Optional.
+    osm_contact: str = ""
+    nominatim_base_url: str = "https://nominatim.openstreetmap.org"
+    open_meteo_base_url: str = "https://api.open-meteo.com"
+    osrm_base_url: str = "https://router.project-osrm.org"
+    # Second provider for place and restaurant search (OpenStreetMap data, another host).
+    photon_base_url: str = "https://photon.komoot.io"
+    overpass_base_url: str = "https://overpass-api.de/api/interpreter"
+    # Overpass queries run on the server; allow more time than plain lookups.
+    overpass_timeout_seconds: float = Field(default=30.0, gt=0)
+    serpapi_base_url: str = "https://serpapi.com"
+    # Empty: flight prices are not fetched; a Google Flights link is offered instead.
+    serpapi_api_key: SecretStr = SecretStr("")
 
     @property
     def cors_origins(self) -> list[str]:

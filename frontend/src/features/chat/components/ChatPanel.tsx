@@ -87,6 +87,7 @@ export function ChatPanel() {
                   key={message.id}
                   message={message}
                   onRetry={chat.retry}
+                  onResolveAction={chat.resolveAction}
                   retryDisabled={chat.isSending}
                 />
               ))}

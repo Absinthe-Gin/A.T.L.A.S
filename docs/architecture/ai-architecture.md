@@ -210,7 +210,19 @@ Quy tắc:
 - `user_id` luôn lấy từ `ToolContext`. `user_id` không bao giờ là tham số do LLM cung cấp.
 - Tool không chứa quy tắc nghiệp vụ. Tool chuyển input thành lời gọi service của chính module đó.
 - Tool nhận dependency qua constructor tại `app/bootstrap.py`. Mỗi lần thực thi mở một session và transaction riêng.
-- `effect=write` đánh dấu Tool làm thay đổi dữ liệu. Cơ chế xác nhận của người dùng cho thao tác ghi sẽ được thiết kế khi Tool ghi đầu tiên được triển khai.
+- `effect=write` đánh dấu Tool làm thay đổi dữ liệu. Tool ghi phải cài `preview()` trả câu mô tả thay đổi.
+
+### Xác nhận thay đổi
+
+Model chỉ được **đề xuất** thay đổi dữ liệu:
+
+1. `ToolExecutor` kiểm tra tham số của Tool ghi, gọi `preview()` (có thể ném `AppError` khi thấy trước là sẽ thất bại), rồi trả `ToolResult` với `status=pending`. `execute()` chưa chạy.
+2. Orchestrator lưu đề xuất vào `ai_pending_actions` (`PendingActionService.propose`) và báo cho model: `awaiting_user_confirmation`, chưa có gì được lưu.
+3. `ChatResponse.pending_actions` đưa đề xuất ra giao diện; giao diện hiện thẻ "Xác nhận / Hủy".
+4. `POST /chat/actions/{id}/confirm`: `ToolExecutor.execute_confirmed` kiểm tra lại tham số rồi gọi `execute()`. Lỗi nghiệp vụ được ghi thành `status=failed`, không ném ra ngoài.
+5. Kết quả được thêm vào hội thoại dưới dạng message `system`, để lượt sau model biết chuyện gì đã xảy ra.
+
+Mỗi đề xuất chỉ được xác nhận hoặc hủy một lần (409 nếu lặp lại).
 
 Hiện chưa có Tool nghiệp vụ nào. Registry rỗng khi chạy thật; Tool mẫu chỉ tồn tại trong `tests/ai_support.py`. Tool nghiệp vụ được thêm cùng module tương ứng, tại `build_tool_registry()` trong `app/bootstrap.py`.
 

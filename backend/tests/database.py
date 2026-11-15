@@ -4,6 +4,11 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+from sqlalchemy import delete
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.modules.finance.models import TransactionCategory
+from app.modules.users.models import User
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
@@ -27,3 +32,10 @@ def alembic_config(database_path: Path) -> Config:
 
 def upgrade_to_head(database_path: Path) -> None:
     command.upgrade(alembic_config(database_path), "head")
+
+
+async def remove_default_user(session: AsyncSession) -> None:
+    """Simulate a database whose default user is missing (it owns the seeded categories)."""
+    await session.execute(delete(TransactionCategory))
+    await session.execute(delete(User))
+    await session.commit()

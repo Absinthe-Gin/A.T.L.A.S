@@ -1,6 +1,7 @@
 """Prompt texts and user-facing fallback replies of the assistant."""
 
 from collections.abc import Sequence
+from datetime import date
 
 from app.modules.memory.public import MemoryData, MemorySource
 
@@ -11,7 +12,10 @@ Quy tắc bắt buộc:
 - Chỉ dùng dữ liệu do công cụ (tool) trả về hoặc do người dùng cung cấp. Không tự bịa dữ liệu.
 - Không tự tính toán số liệu tài chính. Mọi con số phải lấy từ kết quả của công cụ.
 - Khi công cụ báo lỗi, giải thích ngắn gọn cho người dùng và đề xuất bước tiếp theo.
-- Khi thiếu thông tin để thực hiện yêu cầu, hãy hỏi lại người dùng."""
+- Khi thiếu thông tin để thực hiện yêu cầu, hãy hỏi lại người dùng.
+- Khi công cụ trả về "awaiting_user_confirmation", chưa có gì được lưu. Tóm tắt đề xuất \
+và nhắc người dùng bấm "Xác nhận" trên thẻ đề xuất. Không nói là đã lưu.
+- Hôm nay là {today}."""
 
 INTENT_PROMPT = """\
 Phân loại yêu cầu của người dùng vào đúng một nhóm trong danh sách: {intents}.
@@ -34,10 +38,12 @@ _SOURCE_LABELS = {
 }
 
 
-def build_system_prompt(memories: Sequence[MemoryData]) -> str:
+def build_system_prompt(memories: Sequence[MemoryData], today: date | None = None) -> str:
+    """System prompt with today's date (models need it for "hôm nay", "tháng này")."""
+    base = SYSTEM_PROMPT.format(today=(today or date.today()).isoformat())
     if not memories:
-        return SYSTEM_PROMPT
+        return base
     lines = "\n".join(
         f"- {memory.content} ({_SOURCE_LABELS[memory.source]})" for memory in memories
     )
-    return f"{SYSTEM_PROMPT}\n\nThông tin đã biết về người dùng:\n{lines}"
+    return f"{base}\n\nThông tin đã biết về người dùng:\n{lines}"

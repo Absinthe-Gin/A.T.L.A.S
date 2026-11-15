@@ -16,9 +16,9 @@ from app.main import create_app
 from app.modules.ai.providers.base import ToolCall
 from app.modules.ai.providers.mock import DEFAULT_REPLY, MockLLMProvider
 from app.modules.memory.models import Message
-from app.modules.users.models import User
 from app.shared.tools import Tool
-from tests.ai_support import EchoTool, build_runtime, tool_call
+from tests.ai_support import EchoTool, SaveNoteTool, build_runtime, tool_call
+from tests.database import remove_default_user
 
 Script = Sequence[str | list[ToolCall] | Exception]
 ClientFactory = Callable[..., AbstractAsyncContextManager[httpx.AsyncClient]]
@@ -181,11 +181,45 @@ async def test_chat_reports_a_missing_default_user(chat_client: ClientFactory) -
     async with chat_client() as client:
         factory: async_sessionmaker[AsyncSession] = client.app.state.session_factory  # type: ignore[attr-defined]
         async with factory() as session:
-            user = (await session.scalars(select(User))).one()
-            await session.delete(user)
+            await remove_default_user(session)
             await session.commit()
 
         response = await client.post("/api/v1/chat", json={"message": "Chào"})
 
     assert response.status_code == 500
     assert response.json()["error"]["code"] == "default_user_missing"
+
+
+async def test_proposed_change_is_confirmed_through_the_api(chat_client: ClientFactory) -> None:
+    tool = SaveNoteTool()
+    script = [
+        '{"intent": "demo"}',
+        [tool_call("demo_save_note", text="mua sữa")],
+        "Bạn xác nhận nhé.",
+    ]
+
+    async with chat_client(script, [tool]) as client:
+        chat = (await client.post("/api/v1/chat", json={"message": "Ghi chú mua sữa"})).json()
+        proposal = chat["pending_actions"][0]
+        assert chat["tool_calls"] == [{"name": "demo_save_note", "status": "pending"}]
+        assert proposal["summary"] == "Lưu ghi chú: mua sữa"
+        assert proposal["status"] == "pending"
+        assert tool.saved == []
+
+        confirmed = await client.post(f"/api/v1/chat/actions/{proposal['id']}/confirm")
+        again = await client.post(f"/api/v1/chat/actions/{proposal['id']}/cancel")
+
+    assert confirmed.status_code == 200
+    assert confirmed.json()["status"] == "confirmed"
+    assert tool.saved == ["mua sữa"]
+    assert (again.status_code, again.json()["error"]["code"]) == (409, "pending_action_resolved")
+
+
+async def test_unknown_action_returns_404(chat_client: ClientFactory) -> None:
+    async with chat_client() as client:
+        response = await client.post(f"/api/v1/chat/actions/{uuid.uuid4()}/confirm")
+
+    assert (response.status_code, response.json()["error"]["code"]) == (
+        404,
+        "pending_action_not_found",
+    )

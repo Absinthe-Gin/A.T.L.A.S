@@ -130,6 +130,15 @@ Backend chạy được mà không cần Ollama. Khi đó trang chủ báo AI "C
 
 Gửi thử một tin nhắn: mở <http://127.0.0.1:8710/docs>, chọn `POST /api/v1/chat`, nhấn "Try it out".
 
+### Bước 9. Dữ liệu du lịch (tùy chọn)
+
+Bản đồ, tìm địa điểm, thời tiết và quãng đường dùng dịch vụ miễn phí, không cần khóa: OpenStreetMap, Open-Meteo, OSRM. Máy chạy Backend và trình duyệt cần truy cập Internet.
+
+- Nên đặt `OSM_CONTACT` (email hoặc trang web của bạn) trong `backend/.env`. Chính sách của Nominatim yêu cầu ứng dụng tự giới thiệu.
+- Giá vé máy bay cần khóa SerpApi (gói miễn phí giới hạn số lượt tìm mỗi tháng). Đặt `SERPAPI_API_KEY` trong `backend/.env`. Không có khóa, Atlas đưa liên kết Google Flights.
+- Tàu hỏa và xe khách: Atlas đưa quãng đường và liên kết dsvn.vn, Vexere. Atlas không có giờ chạy và giá vé.
+- Ẩm thực tìm quán qua Photon (OpenStreetMap), dự phòng bằng Overpass API, không cần khóa. Dịch vụ công khai đôi khi quá tải và trả lỗi `overpass_error`; khi đó Atlas báo "Chưa tìm được quán" và có thể thử lại sau, hoặc đặt `OVERPASS_BASE_URL` sang một máy chủ khác.
+
 ## Chạy các lần sau
 
 ```bash
@@ -191,6 +200,7 @@ Test không cần Ollama, không cần mạng và không dùng database phát tr
 | API trả `default_user_missing` | Chưa chạy `uv run alembic upgrade head` |
 | Chat trả `llm_not_configured` | Chưa đặt `OLLAMA_MODEL` |
 | Chat trả `llm_unavailable` | Ollama chưa chạy |
+| Không tìm được địa điểm, bản đồ trống | Atlas tự chuyển sang nguồn dự phòng (Photon cho địa điểm và quán, tile.openstreetmap.de cho bản đồ) khi `openstreetmap.org` bị chặn. Nếu vẫn lỗi, mạng đang chặn cả các nguồn này: đổi DNS hoặc đặt `PHOTON_BASE_URL`, `VITE_MAP_FALLBACK_TILE_URL` sang máy chủ khác |
 | Vitest báo "failed to find the current suite" | Chuyển vào thư mục bằng ký tự ổ đĩa viết hoa: `cd C:\...\frontend` |
 
 Chi tiết hơn: [hướng dẫn debug](docs/debugging/debugging-guide.md).
@@ -233,5 +243,6 @@ A.T.L.A.S/
 
 - Chưa có authentication. Backend chỉ được chạy trên máy cá nhân và không được mở ra mạng.
 - Giao diện Chat chưa xem lại được hội thoại cũ sau khi tải lại trang (Backend chưa có API đọc lịch sử).
-- Chưa có Tool nghiệp vụ. Trợ lý chỉ trò chuyện, chưa thao tác dữ liệu.
+- Trợ lý có Tool của Tài chính và Du lịch. Mọi thay đổi dữ liệu do trợ lý đề xuất chỉ được lưu khi người dùng bấm xác nhận.
+- Du lịch chưa có giờ chạy và giá vé tàu, xe (chỉ có liên kết). Giá vé máy bay cần khóa SerpApi.
 - Adapter Ollama chưa được kiểm thử với Ollama thật.

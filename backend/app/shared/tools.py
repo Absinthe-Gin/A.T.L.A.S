@@ -60,10 +60,21 @@ class Tool[InputT: BaseModel, OutputT: BaseModel](ABC):
     @abstractmethod
     async def execute(self, context: ToolContext, tool_input: InputT) -> OutputT: ...
 
+    async def preview(self, context: ToolContext, tool_input: InputT) -> str:
+        """Describe, in the user's language, what `execute` would change.
+
+        Required for `ToolEffect.WRITE` tools: their requests are shown to the
+        user for confirmation instead of running. May raise `AppError` when the
+        request can already be seen to fail (for example an unknown category).
+        """
+        raise NotImplementedError(f"Write tool {self.spec.name!r} must implement preview().")
+
 
 class ToolStatus(StrEnum):
     SUCCESS = "success"
     ERROR = "error"
+    # A write request that waits for the user to confirm it. Nothing has changed yet.
+    PENDING = "pending"
 
 
 class ToolResult(BaseModel):

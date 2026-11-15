@@ -5,14 +5,18 @@ from collections.abc import Sequence
 from typing import Any
 
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import BusinessRuleError
+from app.modules.ai.actions import PendingActionRepository, PendingActionService
 from app.modules.ai.intent import LLMIntentClassifier
 from app.modules.ai.orchestrator import OrchestratorLimits
 from app.modules.ai.providers.base import LLMProvider, ToolCall
 from app.modules.ai.runtime import AIRuntime
 from app.modules.ai.tools.executor import ToolExecutor
 from app.modules.ai.tools.registry import ToolRegistry
+from app.modules.memory.repository import ConversationRepository, MessageRepository
+from app.modules.memory.service import ConversationService
 from app.shared.tools import Tool, ToolContext, ToolEffect, ToolSpec
 
 
@@ -52,7 +56,7 @@ class EchoTool(Tool[EchoInput, EchoOutput]):
 
 
 class BusinessFailureTool(Tool[EchoInput, EchoOutput]):
-    spec = _spec("demo_reject", effect=ToolEffect.WRITE)
+    spec = _spec("demo_reject")
 
     async def execute(self, context: ToolContext, tool_input: EchoInput) -> EchoOutput:
         raise BusinessRuleError("Vượt quá ngân sách.", code="budget_exceeded")
@@ -110,5 +114,50 @@ def build_runtime(
             max_tool_iterations=max_tool_iterations,
             context_max_messages=context_max_messages,
             memory_limit=memory_limit,
+        ),
+    )
+
+
+class NoteInput(BaseModel):
+    text: str = Field(min_length=1, max_length=50)
+
+
+class SavedNote(BaseModel):
+    saved: str
+
+
+class SaveNoteTool(Tool[NoteInput, SavedNote]):
+    """A write tool: the model can only propose it; it runs after confirmation."""
+
+    def __init__(self) -> None:
+        self.spec = ToolSpec(
+            name="demo_save_note",
+            description="Save a note.",
+            domain="demo",
+            effect=ToolEffect.WRITE,
+            input_model=NoteInput,
+            output_model=SavedNote,
+        )
+        self.saved: list[str] = []
+
+    async def preview(self, context: ToolContext, tool_input: NoteInput) -> str:
+        if tool_input.text == "forbidden":
+            raise BusinessRuleError("Không được lưu ghi chú này.", code="note_forbidden")
+        return f"Lưu ghi chú: {tool_input.text}"
+
+    async def execute(self, context: ToolContext, tool_input: NoteInput) -> SavedNote:
+        if tool_input.text == "fails-later":
+            raise BusinessRuleError("Ghi chú đã bị khóa.", code="note_locked")
+        self.saved.append(tool_input.text)
+        return SavedNote(saved=tool_input.text)
+
+
+def build_actions(session: AsyncSession, runtime: AIRuntime) -> PendingActionService:
+    return PendingActionService(
+        session=session,
+        repository=PendingActionRepository(session),
+        executor=runtime.executor,
+        conversations=ConversationService(
+            session, ConversationRepository(session), MessageRepository(session)
         ),
     )

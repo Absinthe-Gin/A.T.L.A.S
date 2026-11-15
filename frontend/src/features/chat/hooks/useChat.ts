@@ -2,8 +2,8 @@ import { useCallback, useEffect, useReducer, useRef } from 'react'
 
 import { type ApiError, toApiError } from '@/services/api/errors'
 
-import { sendChatMessage } from '../api'
-import type { ChatMessage, ChatResponse } from '../types'
+import { cancelAction, confirmAction, sendChatMessage } from '../api'
+import type { ChatMessage, ChatResponse, PendingAction } from '../types'
 
 interface ChatState {
   conversationId: string | null
@@ -16,6 +16,7 @@ type ChatAction =
   | { type: 'replied'; id: string; response: ChatResponse }
   | { type: 'failed'; id: string; error: ApiError }
   | { type: 'removed'; id: string }
+  | { type: 'actionResolved'; action: PendingAction }
   | { type: 'reset' }
 
 const INITIAL_STATE: ChatState = { conversationId: null, messages: [], isSending: false }
@@ -47,6 +48,7 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
             content: action.response.reply,
             intent: action.response.intent,
             toolCalls: action.response.tool_calls,
+            pendingActions: action.response.pending_actions ?? [],
           },
         ],
       }
@@ -57,6 +59,20 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
         messages: state.messages.map((message) =>
           message.id === action.id && message.role === 'user'
             ? { ...message, status: 'failed' as const, error: action.error }
+            : message,
+        ),
+      }
+    case 'actionResolved':
+      return {
+        ...state,
+        messages: state.messages.map((message) =>
+          message.role === 'assistant' && message.pendingActions.some((item) => item.id === action.action.id)
+            ? {
+                ...message,
+                pendingActions: message.pendingActions.map((item) =>
+                  item.id === action.action.id ? action.action : item,
+                ),
+              }
             : message,
         ),
       }
@@ -88,6 +104,8 @@ export interface UseChat {
   retry: (messageId: string) => void
   /** Start a new conversation. Cancels a pending reply. */
   reset: () => void
+  /** Confirm or cancel a proposed change. Resolves to the error to show, or null. */
+  resolveAction: (id: string, decision: 'confirm' | 'cancel') => Promise<ApiError | null>
 }
 
 export function useChat(): UseChat {
@@ -143,5 +161,15 @@ export function useChat(): UseChat {
     dispatch({ type: 'reset' })
   }, [])
 
-  return { ...state, send, retry, reset }
+  const resolveAction = useCallback(async (id: string, decision: 'confirm' | 'cancel') => {
+    try {
+      const resolved = await (decision === 'confirm' ? confirmAction(id) : cancelAction(id))
+      dispatch({ type: 'actionResolved', action: resolved })
+      return null
+    } catch (error) {
+      return toApiError(error)
+    }
+  }, [])
+
+  return { ...state, send, retry, reset, resolveAction }
 }

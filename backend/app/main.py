@@ -19,6 +19,7 @@ from app.core.error_handlers import register_error_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import REQUEST_ID_HEADER, RequestContextMiddleware
 from app.infrastructure.database.session import create_engine, create_session_factory
+from app.infrastructure.external import build_external_services
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +35,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.session_factory = create_session_factory(engine)
         # One client for every outbound call; each adapter sets its own timeout.
         http_client = httpx.AsyncClient()
-        # A test may install its own runtime before startup (e.g. a scripted provider).
+        # A test may install its own services or runtime before startup.
+        if not hasattr(app.state, "external"):
+            app.state.external = build_external_services(settings, http_client)
         if not hasattr(app.state, "ai_runtime"):
-            app.state.ai_runtime = build_ai_runtime(settings, http_client)
+            app.state.ai_runtime = build_ai_runtime(
+                settings, http_client, app.state.session_factory, app.state.external
+            )
         logger.info(
             "Application started",
             extra={

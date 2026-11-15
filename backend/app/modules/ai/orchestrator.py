@@ -11,6 +11,7 @@ import uuid
 from dataclasses import dataclass, field
 
 from app.core.request_context import get_request_id
+from app.modules.ai.actions import PendingActionData, PendingActionService
 from app.modules.ai.context import META_TOOL_CALLS, build_context
 from app.modules.ai.execution_log import log_turn
 from app.modules.ai.intent import INTENT_GENERAL, INTENT_UNKNOWN, IntentClassifier
@@ -19,7 +20,7 @@ from app.modules.ai.providers.base import LLMMessage, LLMProvider, LLMRole
 from app.modules.ai.tools.executor import ToolExecutor
 from app.modules.ai.tools.registry import ToolRegistry, to_definition
 from app.modules.memory.public import ConversationService, MemoryService, MessageRole
-from app.shared.tools import ToolContext, ToolResult
+from app.shared.tools import ToolContext, ToolResult, ToolStatus
 
 logger = logging.getLogger(__name__)
 
@@ -38,11 +39,13 @@ class ChatTurnResult:
     reply: str
     intent: str
     tool_results: list[ToolResult] = field(default_factory=list)
+    # Changes the assistant proposed in this turn; they wait for the user.
+    pending_actions: list[PendingActionData] = field(default_factory=list)
 
 
 def _tool_message_content(result: ToolResult) -> str:
     """What the model is told about a tool execution. Carries no internal details."""
-    if result.succeeded:
+    if result.status in (ToolStatus.SUCCESS, ToolStatus.PENDING):
         return json.dumps(result.output, ensure_ascii=False)
     return json.dumps(
         {"error": {"code": result.error_code, "message": result.error_message}},
@@ -60,6 +63,7 @@ class Orchestrator:
         executor: ToolExecutor,
         conversations: ConversationService,
         memories: MemoryService,
+        actions: PendingActionService,
         limits: OrchestratorLimits,
     ) -> None:
         self._provider = provider
@@ -68,6 +72,7 @@ class Orchestrator:
         self._executor = executor
         self._conversations = conversations
         self._memories = memories
+        self._actions = actions
         self._limits = limits
 
     async def handle(
@@ -94,6 +99,7 @@ class Orchestrator:
         intent = await self._intent_classifier.classify(text, self._registry.domains())
 
         tool_results: list[ToolResult] = []
+        pending_actions: list[PendingActionData] = []
         iterations = 0
         status = "success"
         if intent == INTENT_UNKNOWN:
@@ -104,7 +110,7 @@ class Orchestrator:
                 user_id=user_id, conversation_id=conversation.id, request_id=get_request_id()
             )
             reply, iterations, limit_reached = await self._run_tool_loop(
-                messages, intent, context, tool_results
+                messages, intent, context, tool_results, pending_actions
             )
             if limit_reached:
                 reply, status = TOOL_LIMIT_REPLY, "tool_limit_reached"
@@ -148,6 +154,7 @@ class Orchestrator:
             reply=reply,
             intent=intent,
             tool_results=tool_results,
+            pending_actions=pending_actions,
         )
 
     async def _run_tool_loop(
@@ -156,6 +163,7 @@ class Orchestrator:
         intent: str,
         context: ToolContext,
         tool_results: list[ToolResult],
+        pending_actions: list[PendingActionData],
     ) -> tuple[str, int, bool]:
         """Call the model until it answers in text.
 
@@ -189,6 +197,8 @@ class Orchestrator:
 
             for call in response.tool_calls:
                 result = await self._executor.execute(call, context, allowed_tools)
+                if result.status is ToolStatus.PENDING:
+                    await self._record_proposal(result, context, pending_actions)
                 tool_results.append(result)
                 content = _tool_message_content(result)
                 messages.append(LLMMessage(role=LLMRole.TOOL, content=content, tool_name=call.name))
@@ -206,3 +216,23 @@ class Orchestrator:
                 )
 
         return "", self._limits.max_tool_iterations, True
+
+    async def _record_proposal(
+        self, result: ToolResult, context: ToolContext, pending_actions: list[PendingActionData]
+    ) -> None:
+        """Store a proposed change and tell the model that nothing has been saved yet."""
+        output = result.output or {}
+        action = await self._actions.propose(
+            user_id=context.user_id,
+            conversation_id=context.conversation_id,
+            tool_name=result.tool_name,
+            arguments=dict(output.get("arguments", {})),
+            summary=str(output.get("summary", "")),
+        )
+        pending_actions.append(action)
+        result.output = {
+            "status": "awaiting_user_confirmation",
+            "action_id": str(action.id),
+            "summary": action.summary,
+            "note": "Nothing has been saved. The user must press Confirm in the app.",
+        }

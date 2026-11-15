@@ -345,3 +345,71 @@
     transform: translateY(calc(-3px * var(--motion-distance)));
   }
 }
+
+/*
+ * Map (Leaflet). Markers are pins drawn in CSS with the design tokens, so they
+ * follow light and dark mode. Tiles stay as OpenStreetMap draws them.
+ */
+.map-frame .leaflet-container {
+  font-family: var(--font-sans);
+  background: var(--surface-2);
+}
+
+.map-frame .leaflet-container .leaflet-control-attribution {
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  color: var(--fg-muted);
+  font-size: 0.6875rem;
+}
+
+.map-frame .leaflet-container .leaflet-control-attribution a {
+  color: var(--primary);
+}
+
+.map-frame .leaflet-bar a {
+  background: var(--surface);
+  color: var(--fg);
+  border-color: var(--border);
+}
+
+.map-frame .leaflet-bar a:hover {
+  background: var(--surface-2);
+}
+
+.map-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50% 50% 50% 0;
+  rotate: -45deg;
+  border: 2px solid var(--surface);
+  box-shadow: var(--lift);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.map-pin > span {
+  rotate: 45deg;
+}
+
+.map-pin--destination {
+  background: var(--action);
+  color: var(--action-fg);
+}
+
+.map-pin--stop {
+  background: var(--note-yellow);
+  color: var(--note-yellow-ink);
+  border-color: var(--note-yellow-ink);
+}
+
+.map-pin--selected {
+  background: var(--accent);
+  color: var(--surface);
+}
+
+/* Dark mode: OpenStreetMap tiles are light; dim them so the page does not glare. */
+:root[data-theme='dark'] .map-frame .leaflet-tile-pane {
+  filter: brightness(0.78) contrast(1.05) saturate(0.85);
+}

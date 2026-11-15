@@ -13,3 +13,11 @@ export interface ApiErrorBody {
     request_id: string | null
   }
 }
+
+/** One page of a growing list. Mirrors `app/shared/schemas.py`. */
+export interface Page<T> {
+  items: T[]
+  total: number
+  limit: number
+  offset: number
+}

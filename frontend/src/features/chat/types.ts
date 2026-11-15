@@ -6,12 +6,23 @@ export interface ChatRequest {
   conversation_id: string | null
 }
 
-export type ToolCallStatus = 'success' | 'error'
+export type ToolCallStatus = 'success' | 'error' | 'pending'
 
 /** Mirrors `ToolCallSummary` in `backend/app/modules/ai/schemas.py`. */
 export interface ToolCallSummary {
   name: string
   status: ToolCallStatus
+}
+
+export type PendingActionStatus = 'pending' | 'confirmed' | 'cancelled' | 'failed'
+
+/** A change the assistant proposed. Mirrors `PendingActionView` in `backend/app/modules/ai/schemas.py`. */
+export interface PendingAction {
+  id: string
+  tool_name: string
+  summary: string
+  status: PendingActionStatus
+  error_message: string | null
 }
 
 /** Mirrors `ChatResponse` in `backend/app/modules/ai/schemas.py`. */
@@ -21,6 +32,7 @@ export interface ChatResponse {
   reply: string
   intent: string
   tool_calls: ToolCallSummary[]
+  pending_actions: PendingAction[]
 }
 
 /** Backend limit on `ChatRequest.message`. */
@@ -41,4 +53,5 @@ export type ChatMessage =
       content: string
       intent: string
       toolCalls: ToolCallSummary[]
+      pendingActions: PendingAction[]
     }

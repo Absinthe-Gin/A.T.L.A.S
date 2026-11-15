@@ -4,12 +4,15 @@ import { createMemoryRouter, type RouteObject, RouterProvider } from 'react-rout
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { getHealth } from '@/features/system-status/api'
+import { listPlans } from '@/features/travel/api'
 import { RouteErrorPage } from '@/pages/RouteErrorPage'
 
 import { AppLayout } from './layouts/AppLayout'
 import { routes } from './router'
 
 vi.mock('@/features/system-status/api')
+vi.mock('@/features/finance/api')
+vi.mock('@/features/travel/api')
 
 function renderAt(path: string, routeConfig: RouteObject[] = routes) {
   const router = createMemoryRouter(routeConfig, { initialEntries: [path] })
@@ -40,7 +43,7 @@ describe('application routes', () => {
     const labels = within(nav)
       .getAllByRole('link')
       .map((link) => link.textContent)
-    expect(labels).toEqual(['Tổng quan', 'Trợ lý AI', 'Tài chínhSắp có', 'Du lịchSắp có', 'Ẩm thựcSắp có', 'Ghi nhớSắp có'])
+    expect(labels).toEqual(['Tổng quan', 'Trợ lý AI', 'Tài chính', 'Du lịch', 'Ẩm thực', 'Ghi nhớSắp có'])
     expect(within(nav).getByRole('link', { name: 'Trợ lý AI' })).toHaveAttribute('aria-current', 'page')
     expect(within(nav).getByRole('link', { name: 'Tổng quan' })).not.toHaveAttribute('aria-current')
   })
@@ -53,9 +56,6 @@ describe('application routes', () => {
   })
 
   it.each([
-    ['/finance', 'Tài chính'],
-    ['/travel', 'Du lịch'],
-    ['/food', 'Ẩm thực'],
     ['/memory', 'Ghi nhớ'],
   ])('states plainly that %s is not implemented yet', async (path, title) => {
     renderAt(path)
@@ -63,6 +63,22 @@ describe('application routes', () => {
     expect(await screen.findByRole('heading', { level: 1, name: title })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Phân hệ chưa được triển khai' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Chức năng dự kiến' })).toBeInTheDocument()
+  })
+
+  it('renders the finance page at "/finance"', async () => {
+    renderAt('/finance?month=2026-11')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Tài chính' })).toBeInTheDocument()
+    expect(screen.getByText('Tháng 11/2026')).toBeInTheDocument()
+  })
+
+  it('renders the travel page at "/travel"', async () => {
+    vi.mocked(listPlans).mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 })
+    renderAt('/travel')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Du lịch' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Chưa có chuyến đi nào' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Bản đồ Việt Nam' })).toBeInTheDocument()
   })
 
   it('renders the not-found page for an unknown path', async () => {

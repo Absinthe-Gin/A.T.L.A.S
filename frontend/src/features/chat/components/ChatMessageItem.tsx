@@ -1,8 +1,10 @@
 import { IconGlobe } from '@/components/icons'
 import { Button } from '@/components/ui/Button'
 import { InlineAlert } from '@/components/ui/InlineAlert'
+import type { ApiError } from '@/services/api/errors'
 
 import type { ChatMessage } from '../types'
+import { PendingActionCard } from './PendingActionCard'
 
 type UserChatMessage = Extract<ChatMessage, { role: 'user' }>
 type AssistantChatMessage = Extract<ChatMessage, { role: 'assistant' }>
@@ -10,6 +12,7 @@ type AssistantChatMessage = Extract<ChatMessage, { role: 'assistant' }>
 interface ChatMessageItemProps {
   message: ChatMessage
   onRetry: (messageId: string) => void
+  onResolveAction: (id: string, decision: 'confirm' | 'cancel') => Promise<ApiError | null>
   retryDisabled: boolean
 }
 
@@ -18,7 +21,7 @@ function UserMessage({
   message,
   onRetry,
   retryDisabled,
-}: Omit<ChatMessageItemProps, 'message'> & { message: UserChatMessage }) {
+}: Pick<ChatMessageItemProps, 'onRetry' | 'retryDisabled'> & { message: UserChatMessage }) {
   const failed = message.status === 'failed'
 
   return (
@@ -64,7 +67,13 @@ function AssistantName() {
 }
 
 /** The assistant's words: a white card on the notebook page, introduced by its name. */
-function AssistantMessage({ message }: { message: AssistantChatMessage }) {
+function AssistantMessage({
+  message,
+  onResolveAction,
+}: {
+  message: AssistantChatMessage
+  onResolveAction: ChatMessageItemProps['onResolveAction']
+}) {
   const showDetails = message.intent !== 'general' || message.toolCalls.length > 0
 
   return (
@@ -97,15 +106,22 @@ function AssistantMessage({ message }: { message: AssistantChatMessage }) {
           )}
         </dl>
       )}
+      {message.pendingActions.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {message.pendingActions.map((action) => (
+            <PendingActionCard key={action.id} action={action} onResolve={onResolveAction} />
+          ))}
+        </div>
+      )}
     </li>
   )
 }
 
-export function ChatMessageItem({ message, onRetry, retryDisabled }: ChatMessageItemProps) {
+export function ChatMessageItem({ message, onRetry, retryDisabled, onResolveAction }: ChatMessageItemProps) {
   return message.role === 'user' ? (
     <UserMessage message={message} onRetry={onRetry} retryDisabled={retryDisabled} />
   ) : (
-    <AssistantMessage message={message} />
+    <AssistantMessage message={message} onResolveAction={onResolveAction} />
   )
 }
 
