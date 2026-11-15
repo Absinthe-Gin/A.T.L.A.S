@@ -20,7 +20,7 @@ Chưa dùng ở giai đoạn nền tảng:
 - **Thư viện global state** (Zustand, Redux). Chưa có state nào cần chia sẻ toàn cục.
 - **Thư viện server state** (TanStack Query). Sẽ đề xuất khi tính năng dữ liệu đầu tiên xuất hiện.
 - **Thư viện form**. Sẽ đánh giá khi có form nghiệp vụ đầu tiên.
-- **Thư viện UI component**. Component dùng chung được viết bằng Tailwind khi có nhu cầu thực tế.
+- **Thư viện UI component và thư viện icon**. Component và icon dùng chung được viết bằng Tailwind và SVG trong `src/components/` (xem [design-system.md](../design/design-system.md)).
 
 ## 2. Cấu trúc thư mục
 
@@ -34,11 +34,11 @@ frontend/
 ├── .env.example
 └── src/
     ├── main.tsx              # Điểm vào: mount <App />
-    ├── index.css             # Tailwind entry
+    ├── index.css             # Tailwind entry + design tokens
     ├── app/
     │   ├── App.tsx           # Lắp ráp provider + router
     │   ├── router.tsx        # Bảng route
-    │   └── layouts/          # Khung giao diện chung (AppLayout)
+    │   └── layouts/          # AppLayout, Navigation, BrandMark, ThemeToggle
     ├── pages/                # Một file cho mỗi route
     ├── features/
     │   └── <feature>/
@@ -47,7 +47,10 @@ frontend/
     │       ├── hooks/        # Logic và state của feature
     │       └── components/   # UI của feature
     ├── components/           # UI dùng chung, không chứa nghiệp vụ
-    ├── hooks/                # Hook dùng chung
+    │   ├── ui/               # Button, IconButton, Card, Badge, InlineAlert, EmptyState, Spinner
+    │   ├── icons/            # Bộ icon SVG
+    │   └── PageHeader.tsx    # PageHeader, PageContainer
+    ├── hooks/                # useAsyncData, useTheme
     ├── services/
     │   └── api/
     │       ├── client.ts     # Axios instance + interceptor
@@ -68,6 +71,16 @@ frontend/
 - Thư mục chỉ được tạo khi có file đầu tiên.
 
 Import dùng alias `@/` trỏ tới `src/`.
+
+Feature hiện có:
+
+| Feature | Nội dung |
+| --- | --- |
+| `system-status` | `SystemStatusProvider` tải health một lần và chia sẻ cho sidebar, trang Tổng quan và trang Chat; `SystemStatusPanel`, `SystemStatusIndicator` |
+| `chat` | `useChat` (gửi, gửi lại, cuộc trò chuyện mới), `ChatPanel`, `ChatComposer`, `ChatMessageItem` |
+| `modules` | `catalog.tsx`: danh sách phân hệ, route, icon, trạng thái triển khai; màu giấy nhớ của từng phân hệ; `ModuleNotes` |
+
+`SystemStatusProvider` là trường hợp duy nhất dùng React context cho server state. Lý do: ba màn hình cần cùng một dữ liệu; mỗi màn tự tải sẽ gửi ba request giống nhau.
 
 ## 3. Phân tầng và hướng phụ thuộc
 

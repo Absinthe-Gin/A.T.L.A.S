@@ -4,7 +4,25 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Personal Assistant</title>
+    <meta name="color-scheme" content="light dark" />
+    <title>ATLAS — Trợ lý cá nhân</title>
+    <!-- Apply the saved or system theme before first paint (see src/hooks/useTheme.ts). -->
+    <script>
+      try {
+        var saved = localStorage.getItem('atlas-theme')
+        var dark = saved ? saved === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+      } catch (error) {
+        document.documentElement.dataset.theme = 'light'
+      }
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Be Vietnam Pro is designed for Vietnamese. System fonts are used when offline. -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap"
+    />
   </head>
   <body>
     <div id="root"></div>

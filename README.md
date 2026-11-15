@@ -114,7 +114,7 @@ Copy-Item .env.example .env
 npm run dev
 ```
 
-Kiểm tra: mở <http://localhost:5710>. Trang chủ hiển thị trạng thái Backend, database và AI.
+Kiểm tra: mở <http://localhost:5710>. Trang Tổng quan hiển thị trạng thái Backend, database và AI. Trang Trợ lý AI ở <http://localhost:5710/chat>.
 
 ### Bước 8. Cấu hình AI (tùy chọn)
 
@@ -208,7 +208,8 @@ A.T.L.A.S/
     ├── database/       # Schema hiện tại
     ├── api/            # Tài liệu API
     ├── testing/        # Hướng dẫn kiểm thử
-    └── debugging/      # Hướng dẫn debug
+    ├── debugging/      # Hướng dẫn debug
+    └── design/         # Design system
 ```
 
 ## Tài liệu
@@ -219,6 +220,7 @@ A.T.L.A.S/
 | Tổng quan kiến trúc | [system-overview.md](docs/architecture/system-overview.md) |
 | Backend | [backend-architecture.md](docs/architecture/backend-architecture.md), [backend/README.md](backend/README.md) |
 | Frontend | [frontend-architecture.md](docs/architecture/frontend-architecture.md), [frontend/README.md](frontend/README.md) |
+| Giao diện | [design-system.md](docs/design/design-system.md) |
 | AI | [ai-architecture.md](docs/architecture/ai-architecture.md) |
 | Database | [database-architecture.md](docs/architecture/database-architecture.md), [schema.md](docs/database/schema.md) |
 | API | [api-reference.md](docs/api/api-reference.md) |
@@ -230,6 +232,6 @@ A.T.L.A.S/
 ## Giới hạn hiện tại
 
 - Chưa có authentication. Backend chỉ được chạy trên máy cá nhân và không được mở ra mạng.
-- Chưa có giao diện Chat. Endpoint `POST /api/v1/chat` đã hoạt động.
+- Giao diện Chat chưa xem lại được hội thoại cũ sau khi tải lại trang (Backend chưa có API đọc lịch sử).
 - Chưa có Tool nghiệp vụ. Trợ lý chỉ trò chuyện, chưa thao tác dữ liệu.
 - Adapter Ollama chưa được kiểm thử với Ollama thật.

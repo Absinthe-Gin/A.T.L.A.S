@@ -89,7 +89,7 @@ File test đặt cạnh file nguồn (`X.tsx` và `X.test.tsx`).
 
 | Loại | Ví dụ |
 | --- | --- |
-| Component | `SystemStatusCard.test.tsx`, `ErrorBoundary.test.tsx` |
+| Component | `SystemStatusPanel.test.tsx`, `ModuleNotes.test.tsx`, `ChatPanel.test.tsx`, `ErrorBoundary.test.tsx`, `ui.test.tsx` |
 | Hook | `useAsyncData.test.ts` |
 | API service | `errors.test.ts`, `client.test.ts`, `features/system-status/api.test.ts` |
 | Routing | `app/router.test.tsx` |

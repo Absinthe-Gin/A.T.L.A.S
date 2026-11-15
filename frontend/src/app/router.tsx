@@ -1,6 +1,8 @@
 import { createBrowserRouter, type RouteObject } from 'react-router'
 
-import { HomePage } from '@/pages/HomePage'
+import { ChatPage } from '@/pages/ChatPage'
+import { DashboardPage } from '@/pages/DashboardPage'
+import { ModulePlaceholderPage } from '@/pages/ModulePlaceholderPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { RouteErrorPage } from '@/pages/RouteErrorPage'
 
@@ -15,7 +17,13 @@ export const routes: RouteObject[] = [
         // A failing page is replaced by the error page inside the layout.
         errorElement: <RouteErrorPage />,
         children: [
-          { index: true, element: <HomePage /> },
+          { index: true, element: <DashboardPage /> },
+          { path: 'chat', element: <ChatPage /> },
+          // Planned modules: replace each placeholder with the real page when implemented.
+          { path: 'finance', element: <ModulePlaceholderPage moduleId="finance" /> },
+          { path: 'travel', element: <ModulePlaceholderPage moduleId="travel" /> },
+          { path: 'food', element: <ModulePlaceholderPage moduleId="food" /> },
+          { path: 'memory', element: <ModulePlaceholderPage moduleId="memory" /> },
           { path: '*', element: <NotFoundPage /> },
         ],
       },

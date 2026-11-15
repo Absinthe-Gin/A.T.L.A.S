@@ -933,6 +933,9 @@ docs/
 ├── database/
 │   └── schema.md            # Schema ĐANG tồn tại trong database
 │
+├── design/
+│   └── design-system.md     # Token, component, màn hình, quy tắc giao diện
+│
 ├── testing/
 │   └── testing-guide.md
 │
@@ -1221,6 +1224,19 @@ Migration:
 - Không dùng `any`. Không dùng `enum` và parameter property của TypeScript (`erasableSyntaxOnly`).
 - Văn bản giao diện viết bằng tiếng Việt.
 - File test đặt cạnh file nguồn: `X.tsx` và `X.test.tsx`.
+
+Giao diện (chi tiết: `docs/design/design-system.md`):
+
+- Màu, bo góc và easing chỉ lấy từ design token trong `src/index.css` (`bg-surface`, `text-fg-muted`, `rounded-control`...). Không dùng màu palette Tailwind (`bg-slate-50`) hoặc mã hex trong component.
+- Dùng component trong `src/components/ui/` trước khi viết mới. Link có dạng nút dùng `buttonClasses`.
+- Icon lấy từ `src/components/icons/`. Không dùng emoji làm icon. Không thêm thư viện icon khi chưa được phê duyệt.
+- Nút chỉ có icon dùng `IconButton` với `label` bắt buộc.
+- Màu không là tín hiệu duy nhất: trạng thái luôn có chữ đi kèm.
+- Mọi màn hình hoạt động ở cả giao diện sáng và tối, và không tràn ngang ở độ rộng 390px.
+- Không dùng nhãn viết hoa giãn chữ phía trên tiêu đề, dấu `·` để nối thông tin, mũi tên `→` trong nút. Font mono chỉ dùng cho mã định danh (mã yêu cầu, mã hội thoại, tên Tool).
+- Mỗi phân hệ có một màu giấy nhớ riêng (`note` trong `catalog.tsx`), dùng thống nhất ở giấy nhớ, icon trang đang chọn và trang phân hệ. Lấy class màu từ `components/ui/noteColors.ts`, không ghép tên class động.
+- Phân hệ chưa triển khai hiển thị đúng trạng thái "chưa triển khai". Không hiển thị dữ liệu mẫu như dữ liệu thật.
+- Danh sách phân hệ và trạng thái của chúng chỉ khai báo ở `src/features/modules/catalog.tsx`.
 
 ## 23.8. Cấu hình và địa chỉ chạy
 

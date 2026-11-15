@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useRouteError } from 'react-router'
 
 import { ErrorFallback } from '@/components/ErrorFallback'
+import { PageContainer } from '@/components/PageHeader'
 import { reportError } from '@/utils/reportError'
 
 /** Shown in place of a page that failed, so the layout and navigation stay usable. */
@@ -12,5 +13,9 @@ export function RouteErrorPage() {
     reportError(error, { source: 'route' })
   }, [error])
 
-  return <ErrorFallback title="Trang này gặp lỗi" />
+  return (
+    <PageContainer>
+      <ErrorFallback title="Trang này gặp lỗi" />
+    </PageContainer>
+  )
 }

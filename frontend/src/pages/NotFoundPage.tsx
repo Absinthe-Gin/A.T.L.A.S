@@ -1,13 +1,26 @@
 import { Link } from 'react-router'
 
+import { IconAlert } from '@/components/icons'
+import { PageContainer } from '@/components/PageHeader'
+import { buttonClasses } from '@/components/ui/buttonClasses'
+import { Card } from '@/components/ui/Card'
+import { EmptyState } from '@/components/ui/EmptyState'
+
 export function NotFoundPage() {
   return (
-    <div className="space-y-3">
-      <h1 className="text-2xl font-bold">Không tìm thấy trang</h1>
-      <p className="text-slate-600">Đường dẫn bạn truy cập không tồn tại.</p>
-      <Link to="/" className="font-medium text-blue-700 underline hover:text-blue-600">
-        Về trang chủ
-      </Link>
-    </div>
+    <PageContainer>
+      <Card>
+        <EmptyState
+          icon={<IconAlert />}
+          title="Không tìm thấy trang"
+          description="Đường dẫn bạn truy cập không tồn tại hoặc đã được thay đổi."
+          action={
+            <Link to="/" className={buttonClasses('primary', 'md')}>
+              Về trang chủ
+            </Link>
+          }
+        />
+      </Card>
+    </PageContainer>
   )
 }
