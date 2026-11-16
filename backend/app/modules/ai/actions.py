@@ -2,6 +2,7 @@
 
 import logging
 import uuid
+from collections.abc import Sequence
 from datetime import datetime
 from typing import Any
 
@@ -60,6 +61,19 @@ class PendingActionRepository:
         )
         return await self._session.scalar(statement)
 
+    async def list_for_conversation(
+        self, conversation_id: uuid.UUID, user_id: uuid.UUID
+    ) -> Sequence[PendingAction]:
+        statement = (
+            select(PendingAction)
+            .where(
+                PendingAction.conversation_id == conversation_id,
+                PendingAction.user_id == user_id,
+            )
+            .order_by(PendingAction.created_at)
+        )
+        return (await self._session.scalars(statement)).all()
+
 
 class PendingActionService:
     def __init__(
@@ -96,6 +110,13 @@ class PendingActionService:
         await self._session.commit()
         logger.info("Action proposed", extra={"action_id": str(action.id), "tool_name": tool_name})
         return PendingActionData.model_validate(action)
+
+    async def list_for_conversation(
+        self, conversation_id: uuid.UUID, user_id: uuid.UUID
+    ) -> list[PendingActionData]:
+        """Every proposal made in one conversation, oldest first, so a reopened chat shows them."""
+        actions = await self._repository.list_for_conversation(conversation_id, user_id)
+        return [PendingActionData.model_validate(action) for action in actions]
 
     async def confirm(self, action_id: uuid.UUID, user_id: uuid.UUID) -> PendingActionData:
         """Run the proposed change. A refusal by the module is recorded, not raised."""

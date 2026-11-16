@@ -1,6 +1,8 @@
 import { apiClient } from '@/services/api/client'
 
-import type { ChatRequest, ChatResponse, PendingAction } from './types'
+import type { Page } from '@/types/api'
+
+import type { ChatRequest, ChatResponse, ConversationMessage, ConversationSummary, PendingAction } from './types'
 
 /**
  * A reply can take a while on a local model. Longer than the backend's
@@ -28,4 +30,38 @@ export async function confirmAction(id: string): Promise<PendingAction> {
 export async function cancelAction(id: string): Promise<PendingAction> {
   const response = await apiClient.post<PendingAction>(`/chat/actions/${id}/cancel`)
   return response.data
+}
+
+// --- History -------------------------------------------------------------------
+
+/** Most recently active conversations first. */
+export async function listConversations(signal?: AbortSignal): Promise<Page<ConversationSummary>> {
+  const response = await apiClient.get<Page<ConversationSummary>>('/conversations', {
+    params: { limit: 100 },
+    signal,
+  })
+  return response.data
+}
+
+/** The latest messages of a conversation, newest first (backend order). */
+export async function listMessages(conversationId: string, signal?: AbortSignal): Promise<Page<ConversationMessage>> {
+  const response = await apiClient.get<Page<ConversationMessage>>(`/conversations/${conversationId}/messages`, {
+    params: { limit: 200 },
+    signal,
+  })
+  return response.data
+}
+
+export async function listConversationActions(conversationId: string, signal?: AbortSignal): Promise<PendingAction[]> {
+  const response = await apiClient.get<PendingAction[]>(`/chat/conversations/${conversationId}/actions`, { signal })
+  return response.data
+}
+
+export async function renameConversation(conversationId: string, title: string): Promise<ConversationSummary> {
+  const response = await apiClient.patch<ConversationSummary>(`/conversations/${conversationId}`, { title })
+  return response.data
+}
+
+export async function deleteConversation(conversationId: string): Promise<void> {
+  await apiClient.delete(`/conversations/${conversationId}`)
 }

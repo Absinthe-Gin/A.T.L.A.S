@@ -156,6 +156,18 @@ Tool có tác dụng ghi (ví dụ `finance_create_transaction`) không chạy n
 | 404 | `pending_action_not_found` | Không có đề xuất, hoặc đề xuất của người dùng khác |
 | 409 | `pending_action_resolved` | Đề xuất đã được xác nhận hoặc hủy trước đó |
 
+## Lịch sử hội thoại
+
+| Method | Đường dẫn | Ghi chú |
+| --- | --- | --- |
+| `GET` | `/api/v1/conversations?limit=&offset=` | `Page` của `{id, title, created_at, last_message_at}`, hội thoại hoạt động gần nhất trước. `limit` 1–100, mặc định 30 |
+| `GET` | `/api/v1/conversations/{id}/messages?limit=&offset=` | `Page` của `{id, role, content, created_at}`, **mới nhất trước**; `offset` lùi về quá khứ. `limit` 1–200, mặc định 100. Chỉ gồm tin người đọc được: `user`, `assistant` có nội dung, `system`. Bước gọi Tool không được trả |
+| `PATCH` | `/api/v1/conversations/{id}` | `{title}`, 1–200 ký tự, bỏ khoảng trắng hai đầu |
+| `DELETE` | `/api/v1/conversations/{id}` | 204. Xóa cả tin nhắn và đề xuất của hội thoại (`ON DELETE CASCADE`). Thông tin đã ghi nhớ giữ lại, chỉ mất liên kết nguồn |
+| `GET` | `/api/v1/chat/conversations/{id}/actions` | Danh sách đề xuất của hội thoại, cũ nhất trước, kèm `created_at`. Đề xuất `pending` vẫn xác nhận được khi mở lại hội thoại |
+
+Hội thoại không tồn tại: 404 `conversation_not_found`.
+
 ## Tài chính
 
 Mọi số tiền là **số nguyên, đơn vị đồng (VND)**. Số thực bị từ chối. Mọi tổng số do Backend tính.
@@ -284,4 +296,4 @@ Món đặc sản theo khu vực là gợi ý biên tập của Atlas, không ph
 
 ## Endpoint chưa triển khai
 
-`/conversations`, `/memories`, `/dashboard`.
+`/memories`, `/dashboard`.

@@ -242,7 +242,7 @@ A.T.L.A.S/
 ## Giới hạn hiện tại
 
 - Chưa có authentication. Backend chỉ được chạy trên máy cá nhân và không được mở ra mạng.
-- Giao diện Chat chưa xem lại được hội thoại cũ sau khi tải lại trang (Backend chưa có API đọc lịch sử).
+- Câu trả lời của trợ lý hiện ra khi đã soạn xong, chưa hiện dần từng chữ (chưa có streaming).
 - Trợ lý có Tool của Tài chính và Du lịch. Mọi thay đổi dữ liệu do trợ lý đề xuất chỉ được lưu khi người dùng bấm xác nhận.
 - Du lịch chưa có giờ chạy và giá vé tàu, xe (chỉ có liên kết). Giá vé máy bay cần khóa SerpApi.
 - Adapter Ollama chưa được kiểm thử với Ollama thật.

@@ -19,6 +19,7 @@ def _view(action: PendingActionData) -> PendingActionView:
         summary=action.summary,
         status=action.status.value,
         error_message=action.error_message,
+        created_at=action.created_at,
     )
 
 
@@ -41,6 +42,18 @@ async def send_message(
         ],
         pending_actions=[_view(action) for action in result.pending_actions],
     )
+
+
+@router.get("/conversations/{conversation_id}/actions", response_model=list[PendingActionView])
+async def list_conversation_actions(
+    conversation_id: uuid.UUID,
+    user: Annotated[CurrentUser, Depends(get_current_user)],
+    actions: Annotated[PendingActionService, Depends(get_pending_action_service)],
+) -> list[PendingActionView]:
+    """Proposals made in a conversation, oldest first; pending ones can still be confirmed."""
+    return [
+        _view(action) for action in await actions.list_for_conversation(conversation_id, user.id)
+    ]
 
 
 @router.post("/actions/{action_id}/confirm", response_model=PendingActionView)

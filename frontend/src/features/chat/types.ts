@@ -23,6 +23,8 @@ export interface PendingAction {
   summary: string
   status: PendingActionStatus
   error_message: string | null
+  /** ISO time; used to show a proposal under the reply it belongs to when a chat is reopened. */
+  created_at?: string | null
 }
 
 /** Mirrors `ChatResponse` in `backend/app/modules/ai/schemas.py`. */
@@ -55,3 +57,25 @@ export type ChatMessage =
       toolCalls: ToolCallSummary[]
       pendingActions: PendingAction[]
     }
+  | {
+      /** A note from the system, e.g. that a proposal was confirmed. */
+      id: string
+      role: 'system'
+      content: string
+    }
+
+/** One entry of the conversation list. Mirrors `ConversationSummary` in `backend/app/modules/memory/schemas.py`. */
+export interface ConversationSummary {
+  id: string
+  title: string | null
+  created_at: string
+  last_message_at: string
+}
+
+/** A stored message. Mirrors `ConversationMessage` in `backend/app/modules/memory/schemas.py`. */
+export interface ConversationMessage {
+  id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  created_at: string
+}

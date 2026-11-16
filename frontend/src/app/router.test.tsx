@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, type RouteObject, RouterProvider } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { listConversationActions, listConversations, listMessages } from '@/features/chat/api'
 import { getHealth } from '@/features/system-status/api'
 import { listPlans } from '@/features/travel/api'
 import { RouteErrorPage } from '@/pages/RouteErrorPage'
@@ -13,6 +14,7 @@ import { routes } from './router'
 vi.mock('@/features/system-status/api')
 vi.mock('@/features/finance/api')
 vi.mock('@/features/travel/api')
+vi.mock('@/features/chat/api')
 
 function renderAt(path: string, routeConfig: RouteObject[] = routes) {
   const router = createMemoryRouter(routeConfig, { initialEntries: [path] })
@@ -24,6 +26,7 @@ const mainNav = () => screen.getAllByRole('navigation', { name: 'Điều hướn
 describe('application routes', () => {
   beforeEach(() => {
     vi.mocked(getHealth).mockReturnValue(new Promise(() => {}))
+    vi.mocked(listConversations).mockResolvedValue({ items: [], total: 0, limit: 100, offset: 0 })
   })
 
   it('renders the dashboard inside the layout at "/"', async () => {
@@ -46,6 +49,21 @@ describe('application routes', () => {
     expect(labels).toEqual(['Tổng quan', 'Trợ lý AI', 'Tài chính', 'Du lịch', 'Ẩm thực', 'Ghi nhớSắp có'])
     expect(within(nav).getByRole('link', { name: 'Trợ lý AI' })).toHaveAttribute('aria-current', 'page')
     expect(within(nav).getByRole('link', { name: 'Tổng quan' })).not.toHaveAttribute('aria-current')
+  })
+
+  it('opens a saved conversation from its address', async () => {
+    vi.mocked(listMessages).mockResolvedValue({
+      items: [{ id: 'u1', role: 'user', content: 'Thời tiết Huế?', created_at: '2026-11-16T08:00:00Z' }],
+      total: 1,
+      limit: 200,
+      offset: 0,
+    })
+    vi.mocked(listConversationActions).mockResolvedValue([])
+    renderAt('/chat/c42')
+
+    expect(await screen.findByText('Thời tiết Huế?')).toBeInTheDocument()
+    expect(listMessages).toHaveBeenCalledWith('c42', expect.any(AbortSignal))
+    expect(within(mainNav()).getByRole('link', { name: 'Trợ lý AI' })).toHaveAttribute('aria-current', 'page')
   })
 
   it('renders the chat page at "/chat"', async () => {

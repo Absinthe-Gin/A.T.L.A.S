@@ -12,7 +12,14 @@ from app.modules.memory.repository import (
     MemoryRepository,
     MessageRepository,
 )
-from app.modules.memory.schemas import ConversationData, MemoryData, MessageData
+from app.modules.memory.schemas import (
+    ConversationData,
+    ConversationMessage,
+    ConversationSummary,
+    MemoryData,
+    MessageData,
+)
+from app.shared.schemas import Page
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +89,62 @@ class ConversationService:
         """Return the last `limit` messages of this conversation only, oldest first."""
         messages = await self._messages.list_recent(conversation_id, limit)
         return [MessageData.model_validate(message) for message in messages]
+
+    async def list_conversations(
+        self, user_id: uuid.UUID, *, limit: int = 30, offset: int = 0
+    ) -> Page[ConversationSummary]:
+        rows = await self._conversations.list_for_user(user_id, limit=limit, offset=offset)
+        return Page(
+            items=[
+                ConversationSummary(
+                    id=conversation.id,
+                    title=conversation.title,
+                    created_at=conversation.created_at,
+                    last_message_at=last or conversation.created_at,
+                )
+                for conversation, last in rows
+            ],
+            total=await self._conversations.count_for_user(user_id),
+            limit=limit,
+            offset=offset,
+        )
+
+    async def list_messages(
+        self, conversation_id: uuid.UUID, user_id: uuid.UUID, *, limit: int = 100, offset: int = 0
+    ) -> Page[ConversationMessage]:
+        """The latest visible messages first; `offset` pages back in time."""
+        await self.get_conversation(conversation_id, user_id)
+        messages = await self._messages.list_visible(conversation_id, limit=limit, offset=offset)
+        return Page(
+            items=[ConversationMessage.model_validate(message) for message in messages],
+            total=await self._messages.count_visible(conversation_id),
+            limit=limit,
+            offset=offset,
+        )
+
+    async def rename_conversation(
+        self, conversation_id: uuid.UUID, user_id: uuid.UUID, title: str
+    ) -> ConversationSummary:
+        conversation = await self._conversations.get_for_user(conversation_id, user_id)
+        if conversation is None:
+            raise ConversationNotFoundError()
+        conversation.title = title.strip()
+        await self._session.commit()
+        last = await self._conversations.last_message_at(conversation.id)
+        return ConversationSummary(
+            id=conversation.id,
+            title=conversation.title,
+            created_at=conversation.created_at,
+            last_message_at=last or conversation.created_at,
+        )
+
+    async def delete_conversation(self, conversation_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        conversation = await self._conversations.get_for_user(conversation_id, user_id)
+        if conversation is None:
+            raise ConversationNotFoundError()
+        await self._conversations.delete(conversation)
+        await self._session.commit()
+        logger.info("Conversation deleted", extra={"conversation_id": str(conversation_id)})
 
 
 # Words too common in Vietnamese and English to signal that a memory is relevant.

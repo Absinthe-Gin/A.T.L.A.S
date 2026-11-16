@@ -20,6 +20,7 @@ export const routes: RouteObject[] = [
         children: [
           { index: true, element: <DashboardPage /> },
           { path: 'chat', element: <ChatPage /> },
+          { path: 'chat/:conversationId', element: <ChatPage /> },
           // Planned modules: replace each placeholder with the real page when implemented.
           { path: 'finance', element: <FinancePage /> },
           // Travel pages carry the map library: loaded only when opened.

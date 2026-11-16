@@ -1,9 +1,15 @@
-import { IconGlobe } from '@/components/icons'
+import { useEffect, useState } from 'react'
+
+import { IconCheck, IconCopy, IconGlobe, IconInfo } from '@/components/icons'
 import { Button } from '@/components/ui/Button'
+import { IconButton } from '@/components/ui/IconButton'
 import { InlineAlert } from '@/components/ui/InlineAlert'
 import type { ApiError } from '@/services/api/errors'
+import { reportError } from '@/utils/reportError'
 
+import { toolLabel } from '../tools'
 import type { ChatMessage } from '../types'
+import { MessageMarkdown } from './MessageMarkdown'
 import { PendingActionCard } from './PendingActionCard'
 
 type UserChatMessage = Extract<ChatMessage, { role: 'user' }>
@@ -16,7 +22,7 @@ interface ChatMessageItemProps {
   retryDisabled: boolean
 }
 
-/** The user's words: in the action colour, aligned right. Grows out of its corner when sent. */
+/** The user's words, on the right, in a soft bubble. */
 function UserMessage({
   message,
   onRetry,
@@ -29,9 +35,8 @@ function UserMessage({
       <p className="sr-only">Bạn:</p>
       <div
         className={
-          'max-w-[85%] origin-bottom-right animate-pop whitespace-pre-wrap break-words rounded-bubble rounded-br-sm px-4 py-2.5 text-[0.9375rem] sm:max-w-[70%] ' +
-          'transition-[background-color,color,border-color] duration-200 ' +
-          (failed ? 'border border-danger bg-surface text-fg' : 'btn-action text-action-fg')
+          'max-w-[85%] origin-bottom-right animate-pop whitespace-pre-wrap break-words rounded-bubble px-4 py-2.5 text-[0.9375rem] text-fg sm:max-w-[75%] ' +
+          (failed ? 'border border-danger bg-surface' : 'bg-primary-soft')
         }
       >
         {message.content}
@@ -39,7 +44,7 @@ function UserMessage({
       {failed && message.error && (
         <InlineAlert
           className="w-full max-w-md"
-          title="Chưa gửi được tin nhắn"
+          title="Chưa có câu trả lời"
           requestId={message.error.requestId}
           action={
             <Button variant="secondary" size="sm" onClick={() => onRetry(message.id)} disabled={retryDisabled}>
@@ -54,19 +59,46 @@ function UserMessage({
   )
 }
 
-/** Name line shared by the assistant's replies and its typing indicator. */
-function AssistantName() {
+function AssistantAvatar() {
   return (
-    <p className="mb-1.5 flex items-center gap-2 text-xs font-semibold text-accent">
-      <span className="flex size-6 items-center justify-center rounded-full bg-accent-soft text-accent-soft-fg">
-        <IconGlobe size={14} />
-      </span>
-      Atlas
-    </p>
+    <span
+      aria-hidden="true"
+      className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-soft-fg"
+    >
+      <IconGlobe size={16} />
+    </span>
   )
 }
 
-/** The assistant's words: a white card on the notebook page, introduced by its name. */
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (!copied) return
+    const timer = window.setTimeout(() => setCopied(false), 2000)
+    return () => window.clearTimeout(timer)
+  }, [copied])
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+    } catch (error) {
+      reportError(error, { context: 'copy chat reply' })
+    }
+  }
+
+  return (
+    <IconButton
+      label={copied ? 'Đã sao chép' : 'Sao chép câu trả lời'}
+      icon={copied ? <IconCheck size={16} className="text-success" /> : <IconCopy size={16} />}
+      onClick={() => void copy()}
+      className="size-9"
+    />
+  )
+}
+
+/** The assistant's words: plain text on the page, like a written answer, with its avatar. */
 function AssistantMessage({
   message,
   onResolveAction,
@@ -74,63 +106,71 @@ function AssistantMessage({
   message: AssistantChatMessage
   onResolveAction: ChatMessageItemProps['onResolveAction']
 }) {
-  const showDetails = message.intent !== 'general' || message.toolCalls.length > 0
+  const sources = [...new Map(message.toolCalls.map((call) => [toolLabel(call.name), call])).entries()]
 
   return (
-    <li className="animate-rise">
-      <AssistantName />
-      <div className="ml-8 max-w-[85%] rounded-bubble rounded-tl-sm border border-border bg-surface px-4 py-3 shadow-raise sm:max-w-[75%]">
-        <div className="whitespace-pre-wrap break-words text-[0.9375rem] text-fg">{message.content}</div>
-      </div>
-      {showDetails && (
-        <dl aria-label="Chi tiết xử lý" className="mt-2 space-y-0.5 pl-8 text-xs text-fg-subtle">
-          <div className="flex gap-1.5">
-            <dt>Ý định:</dt>
-            <dd className="font-mono">{message.intent}</dd>
+    <li className="flex animate-rise gap-3">
+      <AssistantAvatar />
+      <div className="min-w-0 flex-1">
+        <p className="sr-only">Atlas:</p>
+        <MessageMarkdown content={message.content} />
+
+        {message.pendingActions.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {message.pendingActions.map((action) => (
+              <PendingActionCard key={action.id} action={action} onResolve={onResolveAction} />
+            ))}
           </div>
-          {message.toolCalls.length > 0 && (
-            <div className="flex gap-1.5">
-              <dt className="shrink-0">Công cụ:</dt>
-              <dd className="flex flex-wrap gap-x-3">
-                {message.toolCalls.map((call, index) => (
-                  // A tool can run more than once per reply; the position keeps keys unique.
-                  <span key={`${call.name}-${index}`}>
-                    <span className="font-mono">{call.name}</span>{' '}
-                    <span className={call.status === 'success' ? 'text-success' : 'text-danger'}>
-                      ({call.status === 'success' ? 'thành công' : 'thất bại'})
-                    </span>
-                  </span>
-                ))}
-              </dd>
-            </div>
+        )}
+
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+          <CopyButton text={message.content} />
+          {sources.length > 0 && (
+            <ul aria-label="Dữ liệu đã dùng" className="flex flex-wrap gap-1.5 text-xs">
+              {sources.map(([label, call]) => (
+                <li
+                  key={label}
+                  title={call.name}
+                  className={
+                    'rounded-full px-2.5 py-1 font-medium ' +
+                    (call.status === 'error' ? 'bg-danger-soft text-danger' : 'bg-surface-2 text-fg-muted')
+                  }
+                >
+                  {call.status === 'error' ? `${label}: không lấy được` : `Đã dùng ${label}`}
+                </li>
+              ))}
+            </ul>
           )}
-        </dl>
-      )}
-      {message.pendingActions.length > 0 && (
-        <div className="mt-3 space-y-2">
-          {message.pendingActions.map((action) => (
-            <PendingActionCard key={action.id} action={action} onResolve={onResolveAction} />
-          ))}
         </div>
-      )}
+      </div>
+    </li>
+  )
+}
+
+/** A short note from the system, e.g. that a proposal was confirmed. */
+function SystemNote({ content }: { content: string }) {
+  return (
+    <li className="flex items-start justify-center gap-2 text-center text-xs text-fg-subtle">
+      <IconInfo size={14} className="mt-0.5 shrink-0" />
+      <span>{content}</span>
     </li>
   )
 }
 
 export function ChatMessageItem({ message, onRetry, retryDisabled, onResolveAction }: ChatMessageItemProps) {
-  return message.role === 'user' ? (
-    <UserMessage message={message} onRetry={onRetry} retryDisabled={retryDisabled} />
-  ) : (
-    <AssistantMessage message={message} onResolveAction={onResolveAction} />
-  )
+  if (message.role === 'user') {
+    return <UserMessage message={message} onRetry={onRetry} retryDisabled={retryDisabled} />
+  }
+  if (message.role === 'system') return <SystemNote content={message.content} />
+  return <AssistantMessage message={message} onResolveAction={onResolveAction} />
 }
 
 export function TypingIndicator() {
   return (
-    <li className="animate-settle" role="status">
-      <AssistantName />
-      <span className="sr-only">Trợ lý đang soạn câu trả lời</span>
-      <span aria-hidden="true" className="flex h-6 items-center gap-1.5 pl-8">
+    <li className="flex animate-settle gap-3" role="status">
+      <AssistantAvatar />
+      <span className="sr-only">Atlas đang soạn câu trả lời</span>
+      <span aria-hidden="true" className="flex h-8 items-center gap-1.5">
         {[0, 140, 280].map((delay) => (
           <span
             key={delay}

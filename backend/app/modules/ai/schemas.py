@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -31,6 +32,7 @@ class PendingActionView(BaseModel):
     summary: str
     status: str
     error_message: str | None = None
+    created_at: datetime | None = None
 
 
 class ChatResponse(BaseModel):

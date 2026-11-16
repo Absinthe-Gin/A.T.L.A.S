@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router'
 
-import { IconClose, IconMenu } from '@/components/icons'
+import { IconClose, IconMenu, IconSidebar } from '@/components/icons'
 import { IconButton } from '@/components/ui/IconButton'
 import { SystemStatusIndicator } from '@/features/system-status/components/SystemStatusIndicator'
 import { SystemStatusProvider } from '@/features/system-status/SystemStatusProvider'
+import { useSidebarCollapsed } from '@/hooks/useSidebarCollapsed'
 import { cn } from '@/utils/cn'
 
 import { BrandMark } from './BrandMark'
@@ -13,11 +14,17 @@ import { ThemeToggle } from './ThemeToggle'
 
 const MOBILE_NAV_ID = 'mobile-navigation'
 
-function SidebarFooter() {
+function SidebarFooter({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex items-center gap-2 border-t border-border px-4 py-3">
-      <div className="min-w-0 flex-1">
-        <SystemStatusIndicator />
+    <div
+      className={cn(
+        'flex items-center border-t border-border py-3',
+        // Folded: the status dot and the theme button stack in the centre of the column.
+        compact ? 'flex-col gap-3 px-0' : 'gap-2 px-4',
+      )}
+    >
+      <div className={cn('min-w-0', !compact && 'flex-1')}>
+        <SystemStatusIndicator compact={compact} />
       </div>
       <ThemeToggle />
     </div>
@@ -31,6 +38,7 @@ export function AppLayout() {
   const [openOnPath, setOpenOnPath] = useState<string | null>(null)
   const menuOpen = openOnPath === pathname
   const closeMenu = () => setOpenOnPath(null)
+  const [collapsed, toggleCollapsed] = useSidebarCollapsed()
 
   useEffect(() => {
     if (!menuOpen) return
@@ -43,7 +51,14 @@ export function AppLayout() {
 
   return (
     <SystemStatusProvider>
-      <div className="min-h-dvh bg-bg text-fg lg:grid lg:grid-cols-[15.5rem_1fr]">
+      <div
+        className={cn(
+          'min-h-dvh bg-bg text-fg lg:grid',
+          // The column eases between its two widths; the page reflows with it.
+          'lg:transition-[grid-template-columns] lg:duration-250 lg:ease-out',
+          collapsed ? 'lg:grid-cols-[4.5rem_1fr]' : 'lg:grid-cols-[15.5rem_1fr]',
+        )}
+      >
         <a
           href="#main"
           className="sr-only rounded-control bg-action px-3 py-2 text-sm font-medium text-action-fg focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50"
@@ -52,14 +67,22 @@ export function AppLayout() {
         </a>
 
         {/* Desktop sidebar: the chart's margin, one neutral step away from the page. */}
-        <aside className="sticky top-0 hidden h-dvh flex-col border-r border-border bg-chrome lg:flex">
-          <div className="px-4 py-5">
-            <BrandMark />
-          </div>
-          <nav aria-label="Điều hướng chính" className="flex-1 overflow-y-auto px-3">
-            <Navigation />
+        <aside className="sticky top-0 hidden h-dvh flex-col overflow-hidden border-r border-border bg-chrome lg:flex">
+          {collapsed ? (
+            <div className="flex flex-col items-center gap-3 px-2 py-5">
+              <BrandMark compact />
+              <ExpandButton collapsed={collapsed} onToggle={toggleCollapsed} />
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-2 px-4 py-5">
+              <BrandMark />
+              <ExpandButton collapsed={collapsed} onToggle={toggleCollapsed} />
+            </div>
+          )}
+          <nav aria-label="Điều hướng chính" className={cn('flex-1 overflow-y-auto', collapsed ? 'px-2' : 'px-3')}>
+            <Navigation collapsed={collapsed} />
           </nav>
-          <SidebarFooter />
+          <SidebarFooter compact={collapsed} />
         </aside>
 
         {/* Mobile top bar with a collapsible navigation panel */}
@@ -109,5 +132,17 @@ export function AppLayout() {
         </main>
       </div>
     </SystemStatusProvider>
+  )
+}
+
+/** Folds the desktop sidebar to icons, or opens it again. Its name says what it will do. */
+function ExpandButton({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+  return (
+    <IconButton
+      label={collapsed ? 'Mở rộng thanh bên' : 'Thu gọn thanh bên'}
+      icon={<IconSidebar size={18} />}
+      aria-expanded={!collapsed}
+      onClick={onToggle}
+    />
   )
 }
