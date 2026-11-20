@@ -66,7 +66,7 @@ backend/
     └── modules/<module>/
 ```
 
-Thư mục module chỉ được tạo khi module đó có code thực. Hiện có `health`, `users`, `memory`, `ai`. Các module `finance`, `travel`, `food`, `dashboard` được tạo khi có yêu cầu triển khai.
+Thư mục module chỉ được tạo khi module đó có code thực. Hiện có `health`, `users`, `memory`, `ai`, `finance`, `travel`, `food`. Module `dashboard` được tạo khi có yêu cầu triển khai.
 
 ## 3. Cấu trúc bên trong một module
 

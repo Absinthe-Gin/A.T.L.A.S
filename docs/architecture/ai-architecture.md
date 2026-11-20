@@ -20,7 +20,7 @@ flowchart TD
 
     subgraph AICore[modules/ai]
         Orchestrator[Orchestrator]
-        Context[ConversationContextBuilder]
+        Context[build_context]
         Intent[IntentClassifier]
         Registry[ToolRegistry]
         Executor[ToolExecutor]
@@ -36,12 +36,13 @@ flowchart TD
 
     subgraph Memory[modules/memory — public.py]
         ConvStore[ConversationService]
-        MemRetriever[MemoryRetriever]
+        MemRetriever[MemoryService.find_relevant]
     end
 
     subgraph Business[Module nghiệp vụ]
         FinTools[finance/tools.py]
         TravelTools[travel/tools.py]
+        FoodTools[food/tools.py]
     end
 
     Orchestrator --> Context
@@ -59,6 +60,7 @@ flowchart TD
     Mock -. implements .-> ProviderPort
     FinTools -. implements .-> ToolContract
     TravelTools -. implements .-> ToolContract
+    FoodTools -. implements .-> ToolContract
     Bootstrap[app/bootstrap.py] -- đăng ký Tool --> Registry
     Bootstrap -- chọn Provider theo cấu hình --> ProviderPort
 ```
@@ -66,7 +68,7 @@ flowchart TD
 | Thành phần | Trách nhiệm |
 | --- | --- |
 | `Orchestrator` | Điều phối một lượt chat từ đầu đến cuối |
-| `ConversationContextBuilder` | Nạp lịch sử hội thoại và Memory liên quan, dựng danh sách message cho LLM |
+| `build_context` (`context.py`) | Nhận lịch sử hội thoại và Memory liên quan, dựng danh sách message cho LLM |
 | `IntentClassifier` | Xác định ý định của tin nhắn, dùng để thu hẹp tập Tool |
 | `ToolRegistry` | Lưu Tool đã đăng ký; tra cứu theo tên và theo intent |
 | `ToolExecutor` | Validate input, thực thi có timeout, validate output, chuẩn hóa lỗi |
@@ -86,7 +88,7 @@ app/modules/ai/
 ├── dependencies.py
 ├── exceptions.py            # Lỗi riêng của AI Core
 ├── orchestrator.py
-├── context.py               # ConversationContextBuilder
+├── context.py               # build_context: dựng danh sách message cho LLM
 ├── intent.py                # IntentClassifier
 ├── prompts.py               # System prompt, prompt phân loại
 ├── execution_log.py         # Ghi log lượt xử lý AI, che dữ liệu nhạy cảm
@@ -224,7 +226,7 @@ Model chỉ được **đề xuất** thay đổi dữ liệu:
 
 Mỗi đề xuất chỉ được xác nhận hoặc hủy một lần (409 nếu lặp lại).
 
-Hiện chưa có Tool nghiệp vụ nào. Registry rỗng khi chạy thật; Tool mẫu chỉ tồn tại trong `tests/ai_support.py`. Tool nghiệp vụ được thêm cùng module tương ứng, tại `build_tool_registry()` trong `app/bootstrap.py`.
+Tool nghiệp vụ đã đăng ký tại `build_tool_registry()` trong `app/bootstrap.py`: 4 Tool `finance`, 5 Tool `travel`, 2 Tool `food` (danh sách đầy đủ: `docs/ai-upgrade/audit.md` mục 1.3). Tool mẫu cho test nằm trong `tests/ai_support.py`.
 
 ## 7. Tool Execution
 
@@ -295,9 +297,9 @@ Streaming chưa nằm trong interface. Khi cần, bổ sung phương thức `str
 - Hội thoại và tin nhắn thuộc module `memory` (Conversation Memory). AI Core chỉ dùng `memory/public.py`.
 - Context gồm: system prompt, Memory liên quan, N tin nhắn gần nhất của **đúng** hội thoại hiện tại, tin nhắn mới.
 - N được cấu hình. Giới hạn theo số token sẽ được bổ sung khi có số đo thực tế.
-- Memory Retrieval trong MVP dùng truy vấn SQL theo danh mục, từ khóa và thời gian. Không dùng vector database. `MemoryRetriever` là interface để thay thế chiến lược truy xuất về sau.
+- Memory Retrieval trong MVP (`MemoryService.find_relevant`): nạp 200 Memory mới nhất của người dùng, chấm điểm theo số từ khóa trùng với tin nhắn, bỏ Memory không trùng từ nào. Không dùng vector database.
 - Memory được chèn vào context kèm nguồn gốc (`user_confirmed` hoặc `ai_inferred`).
-- AI không tự động lưu Memory. Việc lưu Memory đi qua Tool của module `memory`, có validation.
+- AI không tự động lưu Memory. **Hiện chưa có đường ghi Memory nào** (không API, không Tool), nên bảng `memories` luôn rỗng khi chạy thật. Đường ghi qua Tool có xác nhận được lên kế hoạch ở M3 (`docs/ai-upgrade/roadmap.md`).
 
 ## 10. Xử lý khi AI hoạt động sai
 
